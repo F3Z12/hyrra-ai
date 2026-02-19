@@ -68,9 +68,10 @@ Thumbs.db
 tmp/
 outputs/
 
-# (Optional) keep generated downloads out of repo
+# Ignore generated outputs EXCEPT demo zip
 *.csv
 *.zip
+!frontend/public/demo_pdfs.zip
 
 # =========================
 # Misc
