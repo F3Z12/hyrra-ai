@@ -16,7 +16,10 @@ function downloadBlob(blob: Blob, filename: string) {
 }
 
 export default function Home() {
-  const BACKEND_BASE = "http://127.0.0.1:8000";
+  const BACKEND_BASE =
+  process.env.NEXT_PUBLIC_BACKEND_BASE ||
+  "https://waterlooworks-webapp.onrender.com";
+
 
   const [files, setFiles] = useState<File[]>([]);
   const [resumeText, setResumeText] = useState<string>("");
