@@ -1,122 +1,57 @@
-# README.md
-# WaterlooWorks Job Analyzer Web App
+# Hyrra AI — Private Developer Repository
 
-A full-stack web app that batch-analyzes WaterlooWorks job posting PDFs and generates tailored cover letters.
+Hyrra AI is an AI-powered job intelligence and application engine. This repository contains the full proprietary source code for the platform.
 
-Built with FastAPI, Next.js (TypeScript), and OpenAI.
+## Architecture & Structure
+The project is split into three main components:
 
----
-
-## Features (MVP)
-
-Upload multiple WaterlooWorks job posting PDFs and:
-
-• Analyze → download a structured CSV (analysis.csv)  
-• Generate Cover Letters → download a ZIP (cover_letters.zip) with one .txt per job  
-
-Unlimited batch uploads.
-
----
-
-## Tech Stack
-
-Frontend:
-- Next.js
-- React
-- TypeScript
-- Tailwind CSS
-
-Backend:
-- FastAPI
-- Python
-- pdfplumber
-
-AI:
-- OpenAI API (Bring Your Own Key)
-
----
-
-## API Endpoints
-
-Analyze jobs:
-
-POST /v1/batch/analyze
-
-Returns:
-analysis.csv
-
-
-Generate cover letters:
-
-POST /v1/batch/cover-letters
-
-Requires:
-- resume_text
-- openai_api_key
-
-Returns:
-cover_letters.zip
-
----
+- **`backend/`**: FastAPI python server. Handles job/resume extraction, matching engine, SQLite persistence, and OpenAI integration.
+- **`frontend/`**: Next.js React application. Provides the dashboard for tracking applications, viewing matches, and managing resumes.
+- **`frontend/extension/`**: Chrome Extension MVP for extracting visible job posting text from career sites.
 
 ## Local Setup
 
-### 1) Backend
+### 1. Backend Setup
+1. Open a terminal and navigate to the backend directory:
+   ```bash
+   cd backend
+   ```
+2. Create and activate a Python virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Start the backend server:
+   ```bash
+   python -m uvicorn app.main:app --reload
+   ```
 
-```bash
-cd backend
-py -m pip install -r requirements.txt
-py -m uvicorn main:app --reload
-```
+### 2. Frontend Setup
+1. Open a new terminal and navigate to the frontend directory:
+   ```bash
+   cd frontend
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Start the Next.js development server:
+   ```bash
+   npm run dev
+   ```
 
-Backend runs at:
+### 3. Chrome Extension Setup
+1. Open Chrome and navigate to `chrome://extensions`.
+2. Enable **Developer Mode** in the top right corner.
+3. Click **Load unpacked**.
+4. Select the `frontend/extension` folder from this repository.
+5. The Hyrra AI extension is now active and can communicate with your local backend.
 
-http://127.0.0.1:8000
-
-API docs:
-
-http://127.0.0.1:8000/docs
-
----
-
-### 2) Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Frontend runs at:
-
-http://localhost:3000
-
----
-
-## Demo PDFs (optional)
-
-Place demo PDFs in:
-
-frontend/public/demo_pdfs/
-
-Optional ZIP for easy download:
-
-frontend/public/demo_pdfs.zip
-
----
-
-## Architecture
-
-Frontend → FastAPI backend → OpenAI → file generation → browser download
-
-No persistent storage in v1.
-
----
-
-## Roadmap (V2)
-
-- SQL database integration
-- Resume upload support
-- Cover letter preview in browser
-- Public deployment
-- Background job queue
+## Security Warning
+> [!CAUTION]  
+> - **DO NOT COMMIT `.env` FILES.** OpenAI API keys must remain strictly local.
+> - **DO NOT COMMIT `hyrra.db` or `job_intelligence.db`.** This file contains personal resumes and job data. Ensure it remains in `.gitignore`.

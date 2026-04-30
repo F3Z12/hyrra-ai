@@ -4,3 +4,4 @@ python-multipart
 pdfplumber
 openai
 python-dotenv
+sqlalchemy

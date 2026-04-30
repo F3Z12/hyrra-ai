@@ -1,26 +1,184 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: #08090d;
+  --color-foreground: #f0f0f3;
+  --color-panel: #101116;
+  --color-panel-hover: #16171d;
+  --color-card: #111217;
+  --color-card-hover: #171820;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-hover: rgba(255, 255, 255, 0.14);
+  --color-muted: #9ca3af;
+  --color-muted-dark: #6b7280;
+  --color-accent-violet: #8b5cf6;
+  --color-accent-cyan: #38bdf8;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-info: #38bdf8;
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Focus ring */
+*:focus-visible {
+  outline: 2px solid var(--color-accent-violet);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Textarea styling */
+textarea, input[type="text"], input[type="email"] {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  color: var(--color-foreground);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-family: var(--font-sans);
+  transition: border-color 0.15s;
+}
+textarea:focus, input[type="text"]:focus, input[type="email"]:focus {
+  border-color: var(--color-accent-violet);
+  outline: none;
+}
+
+/* Hyrra structural layout utilities (Turbopack Bypass) */
+.hyrra-shell-main {
+  margin-left: 264px;
+  min-height: 100vh;
+}
+
+.hyrra-topbar {
+  height: 78px;
+  padding: 0 40px;
+  border-bottom: 1px solid rgba(255,255,255,0.10);
+}
+
+.hyrra-page {
+  padding: 110px 40px 32px 40px;
+}
+
+.hyrra-page-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.hyrra-sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 264px;
+  height: 100vh;
+  border-right: 1px solid rgba(255,255,255,0.05);
+}
+
+.hyrra-sidebar-brand {
+  height: 78px;
+  padding: 0 28px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  display: flex;
+  align-items: center;
+}
+
+.hyrra-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.hyrra-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.hyrra-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.hyrra-grid-3-start {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  align-items: start;
+}
+
+.hyrra-col-span-2 {
+  grid-column: span 2 / span 2;
+}
+
+.hyrra-col-span-1 {
+  grid-column: span 1 / span 1;
+}
+
+.hyrra-card-padding {
+  padding: 24px;
+}
+
+@media (max-width: 1100px) {
+  .hyrra-grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hyrra-grid-3, .hyrra-grid-3-start {
+    grid-template-columns: 1fr;
+  }
+
+  .hyrra-col-span-2,
+  .hyrra-col-span-1 {
+    grid-column: span 1 / span 1;
+  }
+}
+
+@media (max-width: 700px) {
+  .hyrra-shell-main {
+    margin-left: 0;
+  }
+
+  .hyrra-grid-4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.hyrra-search-input {
+  height: 44px;
+  padding-left: 44px;
 }

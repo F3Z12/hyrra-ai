@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hyrra AI Job Saver</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="header">
+        <div>
+          <h1>Hyrra AI</h1>
+          <p id="sourceLabel">Extracting page text...</p>
+        </div>
+        <a id="dashboardLink" class="dashboard-link" href="http://localhost:3000/jobs">Dashboard</a>
+      </header>
+
+      <section class="field">
+        <label for="jobText">Job description</label>
+        <textarea id="jobText" spellcheck="true" placeholder="Extracted job text will appear here. You can edit or paste text before saving."></textarea>
+      </section>
+
+      <div id="status" class="status" aria-live="polite"></div>
+
+      <footer class="actions">
+        <button id="refreshButton" type="button" class="secondary">Extract Again</button>
+        <button id="saveButton" type="button" class="primary">Save Job</button>
+      </footer>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

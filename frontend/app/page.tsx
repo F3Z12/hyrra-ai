@@ -1,360 +1,151 @@
 "use client";
+import { useEffect, useState } from "react";
+import { Topbar } from "@/components/layout/Topbar";
+import { Card } from "@/components/ui/Card";
+import { MatchScoreBadge } from "@/components/ui/MatchScoreBadge";
+import { StatusPill } from "@/components/ui/StatusPill";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { GradientButton } from "@/components/ui/GradientButton";
+import { Briefcase, BarChart3, Send, MessageSquare, ArrowRight } from "lucide-react";
+import { listJobs, listApplications, listMatches } from "@/lib/api";
+import { timeAgo, initials } from "@/lib/utils";
+import type { Job, Application, MatchResult } from "@/types/api";
+import Link from "next/link";
 
-import { useMemo, useState } from "react";
+export default function DashboardPage() {
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [apps, setApps] = useState<Application[]>([]);
+  const [matches, setMatches] = useState<MatchResult[]>([]);
+  const [loading, setLoading] = useState(true);
 
-type ApiResult = { ok: boolean; message: string };
+  useEffect(() => {
+    Promise.allSettled([listJobs(), listApplications(), listMatches()])
+      .then(([j, a, m]) => {
+        if (j.status === "fulfilled") setJobs(j.value.jobs);
+        if (a.status === "fulfilled") setApps(a.value.applications);
+        if (m.status === "fulfilled") setMatches(m.value.matches);
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
+  const avgScore = matches.length ? Math.round(matches.reduce((s, m) => s + m.match_score, 0) / matches.length) : 0;
+  const appliedThisWeek = apps.filter((a) => a.status === "applied" && a.date_applied).length;
+  const interviewing = apps.filter((a) => a.status === "interviewing").length;
 
-export default function Home() {
-  const BACKEND_BASE =
-  process.env.NEXT_PUBLIC_BACKEND_BASE ||
-  "https://waterlooworks-webapp.onrender.com";
+  const stats = [
+    { label: "Saved Jobs", value: jobs.length, icon: Briefcase, color: "text-accent-violet" },
+    { label: "Avg Match Score", value: avgScore || "—", icon: BarChart3, color: "text-accent-cyan" },
+    { label: "Applied", value: appliedThisWeek, icon: Send, color: "text-success" },
+    { label: "Interviews", value: interviewing, icon: MessageSquare, color: "text-warning" },
+  ];
 
-
-  const [files, setFiles] = useState<File[]>([]);
-  const [resumeText, setResumeText] = useState<string>("");
-
-  // BYOK
-  const [openaiKey, setOpenaiKey] = useState<string>("");
-
-  const [busy, setBusy] = useState<"none" | "analyze" | "letters">("none");
-  const [status, setStatus] = useState<ApiResult | null>(null);
-
-  const totalSizeMB = useMemo(() => {
-    const total = files.reduce((sum, f) => sum + f.size, 0);
-    return (total / (1024 * 1024)).toFixed(2);
-  }, [files]);
-
-  function onPickFiles(list: FileList | null) {
-    if (!list) return;
-    setStatus(null);
-
-    const picked = Array.from(list);
-    const pdfs = picked.filter(
-      (f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf"),
-    );
-    setFiles(pdfs);
-  }
-
-  async function handleAnalyze() {
-    setStatus(null);
-
-    if (files.length === 0) {
-      setStatus({ ok: false, message: "Upload at least one PDF first." });
-      return;
-    }
-
-    setBusy("analyze");
-    try {
-      const form = new FormData();
-      for (const f of files) form.append("files", f);
-
-      const res = await fetch(`${BACKEND_BASE}/v1/batch/analyze`, {
-        method: "POST",
-        body: form,
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || `Analyze failed with status ${res.status}`);
-      }
-
-      const blob = await res.blob();
-      downloadBlob(blob, "analysis.csv");
-      setStatus({ ok: true, message: `Downloaded analysis.csv for ${files.length} job(s).` });
-    } catch (err: any) {
-      setStatus({ ok: false, message: err?.message ?? "Analyze failed." });
-    } finally {
-      setBusy("none");
-    }
-  }
-
-  async function handleCoverLetters() {
-    setStatus(null);
-
-    if (files.length === 0) {
-      setStatus({ ok: false, message: "Upload at least one PDF first." });
-      return;
-    }
-    if (resumeText.trim().length < 30) {
-      setStatus({
-        ok: false,
-        message: "Paste your resume text (at least ~30 characters) before generating cover letters.",
-      });
-      return;
-    }
-
-    // IMPORTANT: Public demo should REQUIRE BYOK
-    if (openaiKey.trim().length < 10) {
-      setStatus({
-        ok: false,
-        message:
-          "Cover letters require an OpenAI API key (BYOK). Paste your key to generate cover letters. Analyze does NOT require a key.",
-      });
-      return;
-    }
-
-    setBusy("letters");
-    try {
-      const form = new FormData();
-      for (const f of files) form.append("files", f);
-      form.append("resume_text", resumeText);
-      form.append("openai_api_key", openaiKey.trim());
-
-      const res = await fetch(`${BACKEND_BASE}/v1/batch/cover-letters`, {
-        method: "POST",
-        body: form,
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || `Cover letters failed with status ${res.status}`);
-      }
-
-      const blob = await res.blob();
-      downloadBlob(blob, "cover_letters.zip");
-      setStatus({ ok: true, message: `Downloaded cover_letters.zip for ${files.length} job(s).` });
-    } catch (err: any) {
-      setStatus({ ok: false, message: err?.message ?? "Cover letter generation failed." });
-    } finally {
-      setBusy("none");
-    }
-  }
-
-  const analyzeReady = files.length > 0;
-  const lettersReady = files.length > 0 && resumeText.trim().length >= 30 && openaiKey.trim().length >= 10;
+  const statusCounts: Record<string, number> = {};
+  apps.forEach((a) => { statusCounts[a.status] = (statusCounts[a.status] || 0) + 1; });
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-950 to-slate-900 text-slate-100">
-      <div className="mx-auto max-w-5xl px-6 py-10">
-        {/* Header */}
-        <div className="flex flex-col gap-2">
-          <div className="inline-flex w-fit items-center gap-2 rounded-full bg-white/5 px-4 py-2 text-sm text-slate-200 ring-1 ring-white/10">
-            <span className="h-2 w-2 rounded-full bg-emerald-400" />
-            WaterlooWorks Job Analyzer — Full-Stack
+    <>
+      <Topbar
+        title="Dashboard"
+        subtitle="Welcome back — here's your job hunt at a glance."
+        action={<Link href="/matches"><GradientButton size="sm"><GitCompareArrows size={14} /> Run AI match</GradientButton></Link>}
+      />
+
+      {loading ? (
+        <div className="flex items-center justify-center py-32 text-muted">Loading…</div>
+      ) : (
+        <div className="hyrra-stack">
+          {/* Stat cards */}
+          <div className="hyrra-grid-4">
+            {stats.map((s) => (
+              <Card key={s.label}>
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-[10px] uppercase tracking-wider text-muted font-bold">{s.label}</span>
+                  <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center"><s.icon size={14} className={s.color} /></div>
+                </div>
+                <div className="text-4xl font-bold tracking-tight">{s.value}</div>
+              </Card>
+            ))}
           </div>
 
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            Upload job PDFs → download a CSV + AI cover letters
-          </h1>
-
-          <p className="max-w-2xl text-slate-300">
-            <b>Analyze</b> is free (no key needed). <b>Cover letters</b> require a user-provided OpenAI API key (BYOK) because it makes a paid API call.
-          </p>
-        </div>
-
-        {/* Demo / Testing Guide */}
-        <section className="mt-8 rounded-2xl bg-white/5 p-6 ring-1 ring-white/10 backdrop-blur">
-          <h2 className="text-lg font-semibold">Quick Demo / Testing Guide</h2>
-          <p className="mt-1 text-sm text-slate-300">
-            Use the included sample PDFs to test quickly. They live in{" "}
-            <code className="text-slate-200">frontend/public/demo_pdfs</code>.
-          </p>
-
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-            {/* IMPORTANT: This assumes you placed demo_pdfs.zip in /public */}
-            <a
-              href="/demo_pdfs.zip"
-              download
-              className="inline-flex items-center justify-center rounded-xl bg-white/5 px-5 py-3 text-sm font-semibold text-slate-100 ring-1 ring-white/10 hover:bg-white/10"
-            >
-              Download Demo PDFs (ZIP)
-            </a>
-
-            <a
-              href={`${BACKEND_BASE}/docs`}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center justify-center rounded-xl bg-white/5 px-5 py-3 text-sm font-semibold text-slate-100 ring-1 ring-white/10 hover:bg-white/10"
-            >
-              Open Backend API Docs
-            </a>
-          </div>
-
-          <ol className="mt-5 list-decimal space-y-2 pl-5 text-sm text-slate-300">
-            <li>
-              Start backend:
-              <span className="ml-2 rounded bg-black/30 px-2 py-1 font-mono text-xs text-slate-200 ring-1 ring-white/10">
-                cd backend && py -m uvicorn main:app --reload
-              </span>
-            </li>
-            <li>
-              Start frontend:
-              <span className="ml-2 rounded bg-black/30 px-2 py-1 font-mono text-xs text-slate-200 ring-1 ring-white/10">
-                cd frontend && npm run dev
-              </span>
-            </li>
-            <li>
-              Upload PDFs → click <b>Analyze</b> → downloads <code>analysis.csv</code> (no key needed).
-            </li>
-            <li>
-              Paste resume text + paste OpenAI key → click <b>Generate</b> → downloads <code>cover_letters.zip</code>.
-            </li>
-          </ol>
-
-          <div className="mt-4 rounded-xl bg-black/20 p-4 text-xs text-slate-400 ring-1 ring-white/10">
-            <b>BYOK:</b> This demo does <b>not</b> provide a server key. If you want cover letters, you must paste your own OpenAI key.
-            The app does not store your key (it is only sent in the request).
-          </div>
-        </section>
-
-        {/* Cards */}
-        <div className="mt-10 grid gap-6 lg:grid-cols-2">
-          {/* Upload */}
-          <section className="rounded-2xl bg-white/5 p-6 ring-1 ring-white/10 backdrop-blur">
-            <h2 className="text-lg font-semibold">1) Upload job PDFs</h2>
-            <p className="mt-1 text-sm text-slate-300">Select one or many WaterlooWorks PDF postings.</p>
-
-            <div className="mt-5 rounded-xl border border-dashed border-white/20 bg-white/5 p-5">
-              <input
-                type="file"
-                multiple
-                accept=".pdf,application/pdf"
-                onChange={(e) => onPickFiles(e.target.files)}
-                className="block w-full cursor-pointer text-sm text-slate-200 file:mr-4 file:rounded-lg file:border-0 file:bg-slate-200 file:px-4 file:py-2 file:text-slate-900 hover:file:bg-white"
-              />
-
-              <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-slate-300">
-                <span className="rounded-full bg-white/5 px-3 py-1 ring-1 ring-white/10">
-                  Files: <span className="text-slate-100">{files.length}</span>
-                </span>
-                <span className="rounded-full bg-white/5 px-3 py-1 ring-1 ring-white/10">
-                  Total size: <span className="text-slate-100">{totalSizeMB} MB</span>
-                </span>
+          <div className="hyrra-grid-3-start">
+            {/* Recent jobs */}
+            <Card className="flex flex-col h-full hyrra-col-span-2">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-sm">Recent Jobs</h3>
+                <Link href="/jobs" className="text-xs text-accent-violet hover:underline flex items-center gap-1">View all <ArrowRight size={12} /></Link>
               </div>
+              {jobs.length === 0 ? (
+                <EmptyState title="No jobs saved yet" description="Save your first job to get started." />
+              ) : (
+                <div className="space-y-3">
+                  {jobs.slice(0, 4).map((job) => (
+                    <Link key={job.id} href={`/jobs/${job.id}`} className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/[0.03] transition-colors">
+                      <div className="w-9 h-9 rounded-lg bg-accent-violet/10 text-accent-violet flex items-center justify-center text-xs font-bold">{initials(job.company || "??")}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-foreground truncate">{job.title || "Untitled"}</div>
+                        <div className="text-xs text-muted">{job.company} · {timeAgo(job.created_at)}</div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </Card>
 
-              {files.length > 0 && (
-                <div className="mt-4 max-h-40 overflow-auto rounded-lg bg-black/20 p-3 text-xs text-slate-200 ring-1 ring-white/10">
-                  {files.map((f) => (
-                    <div key={f.name} className="flex items-center justify-between gap-2 py-1">
-                      <span className="truncate">{f.name}</span>
-                      <span className="shrink-0 text-slate-400">{(f.size / 1024).toFixed(0)} KB</span>
+            {/* Application status */}
+            <Card className="flex flex-col h-full hyrra-col-span-1">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-sm">Application Status</h3>
+                <Link href="/applications" className="text-xs text-accent-violet hover:underline flex items-center gap-1">View all <ArrowRight size={12} /></Link>
+              </div>
+              {apps.length === 0 ? (
+                <EmptyState title="No applications yet" description="Start tracking your applications." />
+              ) : (
+                <div className="space-y-3">
+                  {["saved", "applied", "interviewing", "offer", "rejected"].map((status) => (
+                    <div key={status} className="flex items-center justify-between">
+                      <StatusPill status={status} />
+                      <span className="text-sm font-mono font-bold">{statusCounts[status] || 0}</span>
                     </div>
                   ))}
                 </div>
               )}
+            </Card>
+          </div>
+
+          {/* Recent matches */}
+          <Card>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-sm">Recent Matches</h3>
+              <Link href="/matches" className="text-xs text-accent-violet hover:underline flex items-center gap-1">View all <ArrowRight size={12} /></Link>
             </div>
-          </section>
-
-          {/* Resume + Key */}
-          <section className="rounded-2xl bg-white/5 p-6 ring-1 ring-white/10 backdrop-blur">
-            <h2 className="text-lg font-semibold">2) Resume + OpenAI Key (only for cover letters)</h2>
-            <p className="mt-1 text-sm text-slate-300">
-              <b>Analyze:</b> no key required. <b>Cover letters:</b> requires your key (BYOK) because it triggers a paid API call.
-            </p>
-
-            <textarea
-              value={resumeText}
-              onChange={(e) => setResumeText(e.target.value)}
-              placeholder="Paste your resume text here (required for cover letters)..."
-              className="mt-5 h-40 w-full resize-none rounded-xl bg-black/30 p-4 text-sm text-slate-100 outline-none ring-1 ring-white/10 placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-400/60"
-            />
-
-            <div className="mt-3 text-xs text-slate-400">
-              Tip: Plain text is best. Bullet points are fine.
-            </div>
-
-            <div className="mt-5">
-              <label className="text-sm font-medium text-slate-200">
-                OpenAI API Key <span className="text-rose-200">(required for cover letters)</span>
-              </label>
-              <p className="mt-1 text-xs text-slate-400">
-                Your key is used only for this request and is not stored. You can keep your OpenAI monthly budget capped.
-              </p>
-
-              <input
-                value={openaiKey}
-                onChange={(e) => setOpenaiKey(e.target.value)}
-                placeholder="sk-..."
-                type="password"
-                className="mt-2 w-full rounded-xl bg-black/30 px-4 py-3 text-sm text-slate-100 outline-none ring-1 ring-white/10 placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-400/60"
-              />
-
-              {openaiKey.trim().length === 0 && (
-                <div className="mt-2 text-xs text-amber-300/90">
-                  Cover letters won’t run until you paste an OpenAI key. (Analyze will still work.)
-                </div>
-              )}
-            </div>
-          </section>
+            {matches.length === 0 ? (
+              <EmptyState title="No matches yet" description="Run your first match to see results." />
+            ) : (
+              <div className="hyrra-grid-3">
+                {matches.slice(0, 3).map((m) => (
+                  <div key={m.id} className="flex flex-col gap-3 p-4 rounded-xl border border-white/5 bg-panel/30 hover:bg-white/[0.04] transition-colors">
+                    <div className="flex items-center justify-between">
+                      <MatchScoreBadge score={m.match_score} />
+                      <span className="text-[10px] text-muted-dark">{timeAgo(m.created_at)}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-foreground truncate">{m.job_title || "Job"}</div>
+                      <div className="text-xs text-muted truncate mt-0.5">{m.job_company} · {m.resume_name}</div>
+                    </div>
+                    <div className="text-xs text-muted-dark border-t border-white/5 pt-3 mt-1">
+                      {m.recommendation}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
         </div>
-
-        {/* Actions */}
-        <section className="mt-6 rounded-2xl bg-white/5 p-6 ring-1 ring-white/10 backdrop-blur">
-          <h2 className="text-lg font-semibold">3) Run</h2>
-          <p className="mt-1 text-sm text-slate-300">
-            Analyze returns a CSV. Cover letters returns a ZIP with one <code>.txt</code> per job.
-          </p>
-
-          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-            <button
-              onClick={handleAnalyze}
-              disabled={busy !== "none" || !analyzeReady}
-              className="inline-flex items-center justify-center rounded-xl bg-slate-100 px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-white disabled:opacity-50"
-              title={!analyzeReady ? "Upload at least one PDF to enable Analyze." : ""}
-            >
-              {busy === "analyze" ? "Analyzing..." : "Analyze → Download CSV"}
-            </button>
-
-            <button
-              onClick={handleCoverLetters}
-              disabled={busy !== "none" || !lettersReady}
-              className="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-emerald-950 hover:bg-emerald-400 disabled:opacity-50"
-              title={
-                !lettersReady
-                  ? "To enable: upload PDFs + paste resume text + paste OpenAI key."
-                  : ""
-              }
-            >
-              {busy === "letters" ? "Generating..." : "Generate → Download ZIP"}
-            </button>
-
-            <button
-              onClick={() => {
-                setFiles([]);
-                setResumeText("");
-                setOpenaiKey("");
-                setStatus(null);
-              }}
-              disabled={busy !== "none"}
-              className="inline-flex items-center justify-center rounded-xl bg-white/5 px-5 py-3 text-sm font-semibold text-slate-100 ring-1 ring-white/10 hover:bg-white/10 disabled:opacity-50"
-            >
-              Reset
-            </button>
-          </div>
-
-          {status && (
-            <div
-              className={`mt-5 rounded-xl p-4 text-sm ring-1 ${
-                status.ok
-                  ? "bg-emerald-500/10 text-emerald-200 ring-emerald-400/20"
-                  : "bg-rose-500/10 text-rose-200 ring-rose-400/20"
-              }`}
-            >
-              {status.message}
-            </div>
-          )}
-
-          <div className="mt-6 text-xs text-slate-500">
-            Backend expected at <span className="text-slate-300">{BACKEND_BASE}</span>. Keep FastAPI running while using the UI.
-          </div>
-        </section>
-
-        {/* Footer */}
-        <footer className="mt-10 text-xs text-slate-500">
-          v1: no accounts · unlimited batch · CSV + ZIP downloads · FastAPI + Next.js · BYOK OpenAI for cover letters
-        </footer>
-      </div>
-    </main>
+      )}
+    </>
   );
+}
+
+function GitCompareArrows(props: React.SVGProps<SVGSVGElement> & { size?: number }) {
+  return <svg xmlns="http://www.w3.org/2000/svg" width={props.size || 24} height={props.size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="5" cy="6" r="3"/><path d="M12 6h5a2 2 0 0 1 2 2v7"/><path d="m15 9-3-3 3-3"/><circle cx="19" cy="18" r="3"/><path d="M12 18H7a2 2 0 0 1-2-2V9"/><path d="m9 15 3 3-3 3"/></svg>;
 }
