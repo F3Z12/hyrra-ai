@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\faizs\\\\OneDrive\\\\Desktop\\\\hyrra-ai\" -Force)",
+      "Bash(Select-Object Name, FullName)",
+      "Bash(Test-Path *)"
+    ]
+  }
+}

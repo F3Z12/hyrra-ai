@@ -58,6 +58,101 @@ export interface Application {
   resume_name: string | null;
 }
 
+export interface OutreachContact {
+  id: number;
+  job_id: number;
+  name: string;
+  title: string | null;
+  company: string | null;
+  email: string | null;
+  linkedin_url: string | null;
+  source: string | null;
+  confidence_score: number | null;
+  notes: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface CreateOutreachContactPayload {
+  job_id: number;
+  name: string;
+  title?: string | null;
+  company?: string | null;
+  email?: string | null;
+  linkedin_url?: string | null;
+  source?: string | null;
+  confidence_score?: number | null;
+  notes?: string | null;
+}
+
+export type UpdateOutreachContactPayload = Partial<Omit<CreateOutreachContactPayload, "job_id">>;
+
+export type OutreachMessageStatus = "draft" | "copied" | "sent" | "replied" | "closed";
+export type OutreachMessageType = "email" | "linkedin_dm" | "follow_up" | "referral_request";
+
+export interface OutreachMessage {
+  id: number;
+  job_id: number;
+  contact_id: number | null;
+  message_type: OutreachMessageType;
+  subject: string | null;
+  body: string;
+  status: OutreachMessageStatus;
+  follow_up_date: string | null;
+  sent_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  contact_name: string | null;
+}
+
+export interface CreateOutreachMessagePayload {
+  job_id: number;
+  contact_id?: number | null;
+  message_type: OutreachMessageType;
+  subject?: string | null;
+  body: string;
+  status?: OutreachMessageStatus;
+  follow_up_date?: string | null;
+  sent_at?: string | null;
+}
+
+export interface UpdateOutreachMessagePayload {
+  contact_id?: number | null;
+  message_type?: OutreachMessageType;
+  subject?: string | null;
+  body?: string;
+  status?: OutreachMessageStatus;
+  follow_up_date?: string | null;
+  sent_at?: string | null;
+}
+
+export interface GenerateOutreachMessagePayload {
+  job_id: number;
+  contact_id?: number | null;
+  resume_id?: number | null;
+  match_id?: number | null;
+  message_type: OutreachMessageType;
+  api_key: string;
+  save_as_draft: boolean;
+  extra_context?: string | null;
+}
+
+export interface GeneratedOutreachMessageResponse {
+  message_id: number | null;
+  job_id: number;
+  contact_id: number | null;
+  message_type: OutreachMessageType;
+  subject: string | null;
+  body: string;
+  status: "draft";
+  created_at: string | null;
+  job_title: string | null;
+  job_company: string | null;
+  contact_name: string | null;
+  contact_title: string | null;
+  resume_name: string | null;
+}
+
 export interface MatchResult {
   id: number;
   job_id: number;

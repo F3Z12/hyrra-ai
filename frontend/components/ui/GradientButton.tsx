@@ -8,8 +8,8 @@ interface GradientButtonProps extends React.ButtonHTMLAttributes<HTMLButtonEleme
 }
 
 export function GradientButton({ variant = "primary", size = "md", className, children, ...props }: GradientButtonProps) {
-  const base = "inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap";
-  const sizes = { sm: "px-4 py-2.5 text-xs", md: "px-6 py-3 text-sm", lg: "px-8 py-3.5 text-base" };
+  const base = "inline-flex items-center justify-center gap-2 font-semibold rounded-2xl transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap leading-none";
+  const sizes = { sm: "h-10 px-4 text-xs", md: "h-11 px-6 text-sm", lg: "h-12 px-7 text-base" };
   const variants = {
     primary: "bg-gradient-to-r from-accent-violet to-accent-cyan text-white shadow-lg shadow-accent-violet/20 hover:shadow-accent-violet/40 hover:brightness-110",
     secondary: "bg-panel border border-border text-foreground hover:bg-panel-hover hover:border-border-hover",

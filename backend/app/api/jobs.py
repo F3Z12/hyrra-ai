@@ -14,6 +14,7 @@ Storage endpoints (database):
 """
 
 import json
+from typing import Optional
 
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from pydantic import BaseModel
@@ -29,6 +30,7 @@ from app.services.job_storage_service import (
     create_job_from_text,
     list_jobs,
     get_job,
+    update_job,
     delete_job,
 )
 
@@ -60,6 +62,15 @@ class SaveJobRequest(BaseModel):
     source_label: str = ""
 
 
+class JobUpdate(BaseModel):
+    title: Optional[str] = None
+    company: Optional[str] = None
+    location: Optional[str] = None
+    employment_type: Optional[str] = None
+    source_label: Optional[str] = None
+    raw_text: Optional[str] = None
+
+
 # ---------------------------------------------------------------------------
 # Response helpers
 # ---------------------------------------------------------------------------
@@ -81,6 +92,7 @@ def _job_to_dict(job) -> dict:
         "employment_type": job.employment_type,
         "source_type": job.source_type,
         "source_label": job.source_label,
+        "raw_text": job.raw_text,
         "parsed_profile": parsed_profile,
         "created_at": job.created_at.isoformat() if job.created_at else None,
         "updated_at": job.updated_at.isoformat() if job.updated_at else None,
@@ -173,6 +185,16 @@ async def list_jobs_endpoint(db: Session = Depends(get_db)):
 async def get_job_endpoint(job_id: int, db: Session = Depends(get_db)):
     """Get a single saved job by ID."""
     job = get_job(db, job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job with id {job_id} not found.")
+    return _job_to_dict(job)
+
+
+@router.patch("/{job_id}")
+async def update_job_endpoint(job_id: int, request: JobUpdate, db: Session = Depends(get_db)):
+    """Update saved job metadata, optionally re-extracting changed raw text."""
+    update_data = request.dict(exclude_unset=True)
+    job = update_job(db, job_id, update_data)
     if not job:
         raise HTTPException(status_code=404, detail=f"Job with id {job_id} not found.")
     return _job_to_dict(job)

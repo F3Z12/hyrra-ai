@@ -17,6 +17,7 @@ from app.api.resumes import router as resumes_router
 from app.api.applications import router as applications_router
 from app.api.matches import router as matches_router
 from app.api.ai import router as ai_router
+from app.api.outreach import router as outreach_router
 
 
 @asynccontextmanager
@@ -48,3 +49,4 @@ app.include_router(resumes_router, prefix="/v1/resumes", tags=["Resumes"])
 app.include_router(applications_router, prefix="/v1/applications", tags=["Applications"])
 app.include_router(matches_router, prefix="/v1/matches", tags=["Matches"])
 app.include_router(ai_router, prefix="/v1/ai", tags=["AI"])
+app.include_router(outreach_router, prefix="/v1/outreach", tags=["Outreach"])

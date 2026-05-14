@@ -1,4 +1,19 @@
-import type { Job, Resume, Application, MatchResult, AIExplanation, MatchTextResult } from "@/types/api";
+import type {
+  Job,
+  Resume,
+  Application,
+  MatchResult,
+  AIExplanation,
+  MatchTextResult,
+  OutreachContact,
+  CreateOutreachContactPayload,
+  UpdateOutreachContactPayload,
+  OutreachMessage,
+  CreateOutreachMessagePayload,
+  UpdateOutreachMessagePayload,
+  GenerateOutreachMessagePayload,
+  GeneratedOutreachMessageResponse,
+} from "@/types/api";
 
 const BASE = process.env.NEXT_PUBLIC_BACKEND_BASE ?? "http://127.0.0.1:8000";
 
@@ -19,6 +34,8 @@ export const listJobs = () => request<{ jobs: Job[] }>("/v1/jobs");
 export const getJob = (id: number) => request<Job>(`/v1/jobs/${id}`);
 export const saveJob = (job_text: string, source_type = "text", source_label = "") =>
   request<Job>("/v1/jobs", { method: "POST", body: JSON.stringify({ job_text, source_type, source_label }) });
+export const updateJob = (id: number, data: Partial<Job> & { raw_text?: string }) =>
+  request<Job>(`/v1/jobs/${id}`, { method: "PATCH", body: JSON.stringify(data) });
 export const deleteJob = (id: number) => request<{ deleted: boolean }>(`/v1/jobs/${id}`, { method: "DELETE" });
 
 // ── Resumes ───────────────────────────────────────────────────────────
@@ -52,6 +69,28 @@ export const updateApplication = (id: number, data: Record<string, unknown>) =>
 export const deleteApplication = (id: number) =>
   request<{ deleted: boolean }>(`/v1/applications/${id}`, { method: "DELETE" });
 
+// Outreach
+export const listOutreachContactsForJob = (jobId: number) =>
+  request<{ contacts: OutreachContact[] }>(`/v1/outreach/jobs/${jobId}/contacts`);
+export const createOutreachContact = (payload: CreateOutreachContactPayload) =>
+  request<OutreachContact>("/v1/outreach/contacts", { method: "POST", body: JSON.stringify(payload) });
+export const updateOutreachContact = (contactId: number, payload: UpdateOutreachContactPayload) =>
+  request<OutreachContact>(`/v1/outreach/contacts/${contactId}`, { method: "PATCH", body: JSON.stringify(payload) });
+export const deleteOutreachContact = (contactId: number) =>
+  request<{ deleted: boolean }>(`/v1/outreach/contacts/${contactId}`, { method: "DELETE" });
+export const listOutreachMessagesForJob = (jobId: number) =>
+  request<{ messages: OutreachMessage[] }>(`/v1/outreach/jobs/${jobId}/messages`);
+export const listOutreachMessagesForContact = (contactId: number) =>
+  request<{ messages: OutreachMessage[] }>(`/v1/outreach/contacts/${contactId}/messages`);
+export const generateOutreachMessage = (payload: GenerateOutreachMessagePayload) =>
+  request<GeneratedOutreachMessageResponse>("/v1/outreach/messages/generate", { method: "POST", body: JSON.stringify(payload) });
+export const createOutreachMessage = (payload: CreateOutreachMessagePayload) =>
+  request<OutreachMessage>("/v1/outreach/messages", { method: "POST", body: JSON.stringify(payload) });
+export const updateOutreachMessage = (messageId: number, payload: UpdateOutreachMessagePayload) =>
+  request<OutreachMessage>(`/v1/outreach/messages/${messageId}`, { method: "PATCH", body: JSON.stringify(payload) });
+export const deleteOutreachMessage = (messageId: number) =>
+  request<{ deleted: boolean }>(`/v1/outreach/messages/${messageId}`, { method: "DELETE" });
+
 // ── Matches ───────────────────────────────────────────────────────────
 export const listMatches = () => request<{ matches: MatchResult[] }>("/v1/matches");
 export const createMatch = (job_id: number, resume_id: number) =>
@@ -67,7 +106,14 @@ export const explainMatch = (job_id: number, resume_id: number, api_key: string)
     { method: "POST", body: JSON.stringify({ job_id, resume_id, api_key }) }
   );
 export const generateCoverLetter = (job_id: number, resume_id: number, api_key: string) =>
-  request<{ cover_letter: string }>(
-    "/v1/ai/cover-letter",
-    { method: "POST", body: JSON.stringify({ job_id, resume_id, api_key }) }
-  );
+  fetch(`${BASE}/v1/ai/cover-letter`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ job_id, resume_id, api_key }),
+  }).then(async (res) => {
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.detail ?? `Request failed: ${res.status}`);
+    }
+    return res.blob();
+  });

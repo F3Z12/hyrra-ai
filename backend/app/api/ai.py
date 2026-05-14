@@ -10,8 +10,10 @@ They build on top of the deterministic scoring engine.
 """
 
 import json
+from io import BytesIO
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
+from fpdf import FPDF
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -79,6 +81,48 @@ def _load_profiles_and_score(db: Session, job_id: int, resume_id: int):
     return job_profile, resume_profile, match_result
 
 
+def _pdf_safe_text(text: str) -> str:
+    """Normalize common punctuation to keep core PDF fonts reliable."""
+    replacements = {
+        "\u2018": "'",
+        "\u2019": "'",
+        "\u201c": '"',
+        "\u201d": '"',
+        "\u2013": "-",
+        "\u2014": "-",
+        "\u2026": "...",
+        "\u00a0": " ",
+    }
+    for source, target in replacements.items():
+        text = text.replace(source, target)
+    return text.encode("latin-1", "replace").decode("latin-1")
+
+
+def _cover_letter_pdf_bytes(cover_letter: str) -> bytes:
+    """Render cover letter text to a simple wrapped PDF document."""
+    pdf = FPDF(format="Letter")
+    pdf.set_margins(left=20, top=18, right=20)
+    pdf.set_auto_page_break(auto=True, margin=18)
+    pdf.add_page()
+    pdf.set_font("Helvetica", size=11)
+
+    safe_text = _pdf_safe_text(cover_letter)
+    line_height = 6
+    for paragraph in safe_text.splitlines():
+        if paragraph.strip():
+            pdf.multi_cell(0, line_height, paragraph.strip())
+        pdf.ln(2)
+
+    output = pdf.output(dest="S")
+    if isinstance(output, str):
+        return output.encode("latin-1")
+    if isinstance(output, bytearray):
+        return bytes(output)
+    if isinstance(output, BytesIO):
+        return output.getvalue()
+    return bytes(output)
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -144,4 +188,9 @@ async def cover_letter_endpoint(request: AIMatchRequest, db: Session = Depends(g
     except RuntimeError:
         raise HTTPException(status_code=500, detail="AI generation failed.")
 
-    return {"cover_letter": cover_letter}
+    pdf_bytes = _cover_letter_pdf_bytes(cover_letter)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'attachment; filename="cover_letter.pdf"'},
+    )

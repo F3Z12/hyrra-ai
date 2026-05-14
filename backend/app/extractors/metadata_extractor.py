@@ -14,7 +14,7 @@ import re
 
 TITLE_LABELS = ("title", "job title", "position", "role")
 COMPANY_LABELS = ("company", "organization", "employer", "company name", "org")
-LOCATION_LABELS = ("location", "office", "work location", "workplace")
+LOCATION_LABELS = ("location", "office", "work location", "workplace", "job - city", "region")
 EMPLOYMENT_TYPE_LABELS = ("employment type", "job type", "type")
 WORK_MODE_LABELS = ("work mode", "location type", "workplace type", "work model", "work type")
 ALL_METADATA_LABELS = TITLE_LABELS + COMPANY_LABELS + LOCATION_LABELS + EMPLOYMENT_TYPE_LABELS + WORK_MODE_LABELS + (
@@ -23,6 +23,17 @@ ALL_METADATA_LABELS = TITLE_LABELS + COMPANY_LABELS + LOCATION_LABELS + EMPLOYME
     "source",
     "url",
     "page title",
+    "job id",
+    "work term",
+    "application deadline",
+    "application method",
+    "application email",
+    "division",
+    "job - province/state",
+    "job - country",
+    "employment location arrangement",
+    "application delivery",
+    "if by email, send to",
 )
 
 COMPENSATION_LOCATION_BLOCKLIST = (
@@ -104,6 +115,109 @@ EMPLOYMENT_TYPE_KEYWORDS: dict[str, list[str]] = {
     "Temporary": ["temporary", "temp"],
 }
 
+JOB_TITLE_KEYWORDS = (
+    "intern",
+    "internship",
+    "co-op",
+    "coop",
+    "engineer",
+    "developer",
+    "analyst",
+    "product",
+    "manager",
+    "designer",
+    "data",
+    "software",
+    "backend",
+    "frontend",
+    "full stack",
+    "machine learning",
+    "ai",
+    "enablement",
+    "associate",
+    "specialist",
+    "consultant",
+    "wealth",
+    "business",
+    "technology",
+    "finance",
+    "executive",
+    "sales",
+    "marketing",
+    "operations",
+    "coordinator",
+    "director",
+    "lead",
+    "principal",
+    "architect",
+    "administrator",
+    "representative",
+    "customer",
+    "solutions",
+    "security",
+    "devops",
+    "qa",
+    "research",
+    "scientist",
+)
+
+BAD_TITLE_VALUES = {
+    "careers",
+    "jobs",
+    "home",
+    "candidate home",
+    "search jobs",
+    "search for jobs",
+    "job alerts",
+    "why choose us",
+    "settings",
+    "english",
+    "view application",
+    "applied for this job",
+    "read more",
+    "accessibility",
+    "faq",
+    "labor posters",
+    "our values",
+    "job posting",
+    "job description",
+    "description",
+    "department",
+    "team",
+    "location",
+    "work mode",
+    "employment type",
+    "td careers",
+    "td",
+    "waterlooworks",
+    "swap_vert",
+    "co-op jobs",
+    "university of waterloo - myaccount - co-op jobs - employer-student direct - jobs",
+}
+
+BODY_SENTENCE_STARTERS = ("as a", "you will", "we are", "our", "about")
+RESPONSIBILITY_TITLE_BLOCKLIST = (
+    "write",
+    "build",
+    "develop",
+    "design",
+    "support",
+    "collaborate",
+    "manage",
+    "analyze",
+    "create",
+)
+SECTION_HEADING_WORDS = (
+    "about",
+    "overview",
+    "responsibilities",
+    "qualifications",
+    "requirements",
+    "benefits",
+    "what you will do",
+    "what you'll do",
+)
+
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -128,6 +242,16 @@ def _line_label_value(line: str, labels: tuple[str, ...]) -> str:
     return ""
 
 
+def _line_label_value_loose(line: str, labels: tuple[str, ...]) -> str:
+    """Extract values from source text that lost colon separators."""
+    for label in sorted(labels, key=len, reverse=True):
+        pattern = rf"^\s*{re.escape(label)}\s+(.+?)\s*$"
+        match = re.match(pattern, line, re.IGNORECASE)
+        if match:
+            return _clean_metadata_value(match.group(1))
+    return ""
+
+
 def _is_metadata_label_line(line: str) -> bool:
     cleaned = _clean_metadata_value(line).lower()
     if cleaned in ALL_METADATA_LABELS:
@@ -138,13 +262,188 @@ def _is_metadata_label_line(line: str) -> bool:
     )
 
 
+def _normalize_compare(value: str) -> str:
+    return re.sub(r"\s+", " ", value or "").strip().lower()
+
+
+def _has_title_keyword(value: str) -> bool:
+    lower = _normalize_compare(value)
+    return any(re.search(rf"\b{re.escape(keyword)}\b", lower) for keyword in JOB_TITLE_KEYWORDS)
+
+
+def _company_title_variants(company: str) -> set[str]:
+    company_lower = _normalize_compare(company)
+    if not company_lower:
+        return set()
+    return {
+        company_lower,
+        f"{company_lower} careers",
+        f"{company_lower} jobs",
+    }
+
+
+def _is_bad_title_candidate(value: str, company: str = "") -> bool:
+    """Return True for career portal, navigation, or body-copy title candidates."""
+    cleaned = _clean_metadata_value(value)
+    if not cleaned or len(cleaned) < 5 or len(cleaned) > 160:
+        return True
+
+    lower = _normalize_compare(cleaned)
+    if lower in BAD_TITLE_VALUES or lower in _company_title_variants(company):
+        return True
+    if lower.endswith("myaccount - co-op jobs - employer-student direct - jobs"):
+        return True
+    if "you applied for this job" in lower:
+        return True
+    if lower.endswith("careers") and not _has_title_keyword(cleaned):
+        return True
+    if lower.startswith(BODY_SENTENCE_STARTERS):
+        return True
+
+    sentence_punctuation_count = len(re.findall(r"[.!?]", cleaned))
+    word_count = len(re.findall(r"\b[\w'/-]+\b", cleaned))
+    if sentence_punctuation_count > 1:
+        return True
+    if re.search(r"[.!?]\s+\S", cleaned) and word_count > 10:
+        return True
+
+    punctuation_count = len(re.findall(r"[,;:|/\\()\[\]{}]", cleaned))
+    if punctuation_count > max(6, len(cleaned) // 12):
+        return True
+
+    return False
+
+
+def _is_valid_job_title(value: str, company: str = "", *, explicit_label: bool = False) -> bool:
+    """Validate likely role titles while rejecting nav labels and body sentences."""
+    cleaned = _clean_metadata_value(value)
+    if _is_bad_title_candidate(cleaned, company):
+        return False
+
+    word_count = len(re.findall(r"\b[\w'/-]+\b", cleaned))
+    has_title_keyword = _has_title_keyword(cleaned)
+    has_season_or_year = bool(re.search(r"\b(fall|winter|spring|summer|20\d{2}|co[-\s]?op|coop|intern)\b", cleaned, re.IGNORECASE))
+
+    if word_count > 18 and not has_title_keyword:
+        return False
+    if any(re.search(rf"\b{re.escape(verb)}\b", cleaned, re.IGNORECASE) for verb in RESPONSIBILITY_TITLE_BLOCKLIST):
+        if not has_title_keyword:
+            return False
+
+    return has_title_keyword or has_season_or_year or (explicit_label and word_count <= 8)
+
+
+def _page_title_candidate(value: str, company: str = "") -> str:
+    """Extract the role-looking side of a document title, e.g. before '| TD Careers'."""
+    cleaned = _clean_metadata_value(value)
+    if not cleaned:
+        return ""
+    for part in re.split(r"\s*[|\u2013\u2014]\s*", cleaned):
+        part = _clean_metadata_value(part)
+        if _is_valid_job_title(part, company):
+            return part
+    return cleaned if _is_valid_job_title(cleaned, company) else ""
+
+
+def _extract_title_from_labeled_metadata(text: str, company: str = "") -> str:
+    """Extract explicit Title/Job Title/Position/Role only if the value is valid."""
+    posting_match = re.search(r"job posting:\s*\d+\s*-\s*position:\s*(.+)", text, re.IGNORECASE)
+    if posting_match:
+        posting_title = _clean_metadata_value(posting_match.group(1))
+        if _is_valid_job_title(posting_title, company, explicit_label=True):
+            return posting_title
+
+    lines = text.splitlines()
+    normalized_labels = {label.lower() for label in TITLE_LABELS}
+
+    for index, line in enumerate(lines):
+        value = _line_label_value(line, TITLE_LABELS) or _line_label_value_loose(line, TITLE_LABELS)
+        if value and _is_valid_job_title(value, company, explicit_label=True):
+            return value
+
+        normalized_line = _clean_metadata_value(line).lower()
+        if normalized_line not in normalized_labels:
+            continue
+
+        for next_line in lines[index + 1:index + 5]:
+            candidate = _clean_metadata_value(next_line)
+            if not candidate:
+                continue
+            if candidate.lower() in normalized_labels or _is_metadata_label_line(next_line):
+                continue
+            if _is_valid_job_title(candidate, company, explicit_label=True):
+                return candidate
+            break
+
+    return ""
+
+
+def _score_title_candidate(value: str, *, index: int, company: str = "", from_page_title: bool = False) -> int:
+    if not _is_valid_job_title(value, company):
+        return -10_000
+
+    score = 0
+    cleaned = _clean_metadata_value(value)
+    lower = cleaned.lower()
+    word_count = len(re.findall(r"\b[\w'/-]+\b", cleaned))
+
+    if 8 <= len(cleaned) <= 140:
+        score += 25
+    if re.search(r"[()]", cleaned):
+        score += 15
+    if re.search(r"\b(fall|winter|spring|summer|20\d{2}|intern|co[-\s]?op|coop)\b", cleaned, re.IGNORECASE):
+        score += 30
+    for keyword in JOB_TITLE_KEYWORDS:
+        if re.search(rf"\b{re.escape(keyword)}\b", lower):
+            score += 12
+    if from_page_title:
+        score += 10
+    if word_count <= 2:
+        score -= 15
+    if re.search(r"\bcareers?\b", cleaned, re.IGNORECASE) and not _has_title_keyword(cleaned):
+        score -= 120
+
+    return score - index
+
+
+def _extract_title_from_heading_candidates(text: str, company: str = "") -> str:
+    """Scan early normalized text for role-title lines when explicit metadata is bad."""
+    candidates: list[tuple[int, str]] = []
+    lines = [_clean_metadata_value(line) for line in text.splitlines()]
+    non_empty_lines = [line for line in lines if line]
+
+    for index, line in enumerate(non_empty_lines[:50]):
+        lower = line.lower()
+
+        page_title_value = _line_label_value(line, ("page title",))
+        if page_title_value:
+            page_title = _page_title_candidate(page_title_value, company)
+            if page_title:
+                candidates.append((_score_title_candidate(page_title, index=index, company=company, from_page_title=True), page_title))
+            continue
+
+        if lower in ALL_METADATA_LABELS or _is_metadata_label_line(line):
+            continue
+        if any(lower.startswith(section) for section in SECTION_HEADING_WORDS):
+            break
+
+        if _is_valid_job_title(line, company):
+            candidates.append((_score_title_candidate(line, index=index, company=company), line))
+
+    if not candidates:
+        return ""
+
+    candidates.sort(key=lambda item: item[0], reverse=True)
+    return candidates[0][1] if candidates[0][0] > -10_000 else ""
+
+
 def _extract_labeled_field(text: str, labels: tuple[str, ...]) -> str:
     """Extract the first non-empty labeled value from a line or following line."""
     lines = text.splitlines()
     normalized_labels = {label.lower() for label in labels}
 
     for index, line in enumerate(lines):
-        value = _line_label_value(line, labels)
+        value = _line_label_value(line, labels) or _line_label_value_loose(line, labels)
         if value:
             return value
 
@@ -195,6 +494,14 @@ def _is_valid_location(value: str, *, explicit_label: bool = False) -> bool:
 
 def _extract_location(text: str) -> str:
     """Extract location conservatively. Empty is better than a wrong value."""
+    city = _extract_labeled_field(text, ("job - city",))
+    province = _extract_labeled_field(text, ("job - province/state",))
+    country = _extract_labeled_field(text, ("job - country",))
+    if city and province:
+        return f"{city}, {province}"
+    if city:
+        return f"{city}, {country}" if country and country.lower() not in {"canada", "ca"} else city
+
     for line in text.splitlines():
         value = _line_label_value(line, LOCATION_LABELS)
         if value and _is_valid_location(value, explicit_label=True):
@@ -202,7 +509,7 @@ def _extract_location(text: str) -> str:
 
     labeled_value = _extract_labeled_field(text, LOCATION_LABELS)
     if labeled_value and _is_valid_location(labeled_value, explicit_label=True):
-        return labeled_value
+        return re.sub(r"^[A-Z]{2}\s+-\s+", "", labeled_value)
 
     return ""
 
@@ -225,6 +532,32 @@ def _extract_work_mode(text: str) -> str:
     if value and _is_valid_location(value, explicit_label=True):
         return value
     return ""
+
+
+def _is_bad_company_candidate(value: str) -> bool:
+    cleaned = _normalize_compare(value)
+    return cleaned in {"waterlooworks", "swap_vert", "university of waterloo - myaccount", "co-op jobs", "jobs"}
+
+
+def _extract_company(text: str) -> str:
+    company = _extract_labeled_field(text, ("company", "company name", "employer", "org"))
+    organization = _extract_labeled_field(text, ("organization",))
+    if organization:
+        if not company or _is_bad_company_candidate(company):
+            return organization
+    return "" if _is_bad_company_candidate(company) else company
+
+
+def _extract_extra_metadata(text: str) -> dict:
+    job_id_match = re.search(r"job posting:\s*(\d+)", text, re.IGNORECASE)
+    return {
+        "work_mode": _extract_work_mode(text) or _extract_labeled_field(text, ("employment location arrangement",)),
+        "work_term": _extract_labeled_field(text, ("work term",)),
+        "application_deadline": _extract_labeled_field(text, ("application deadline", "app deadline")),
+        "application_method": _extract_labeled_field(text, ("application method", "application delivery")),
+        "application_email": _extract_labeled_field(text, ("application email", "if by email, send to")),
+        "job_id": _extract_labeled_field(text, ("job id",)) or (job_id_match.group(1) if job_id_match else ""),
+    }
 
 
 def _detect_employment_type(text_lower: str) -> str:
@@ -255,10 +588,13 @@ def extract_metadata(job_text: str) -> dict:
     """
     warnings: list[str] = []
 
-    title = _extract_labeled_field(job_text, TITLE_LABELS)
-    company = _extract_labeled_field(job_text, COMPANY_LABELS)
+    company = _extract_company(job_text)
+    title = _extract_title_from_labeled_metadata(job_text, company)
+    if not title:
+        title = _extract_title_from_heading_candidates(job_text, company)
     location = _extract_location(job_text)
     employment_type = _extract_employment_type(job_text)
+    extra_metadata = {key: value for key, value in _extract_extra_metadata(job_text).items() if value}
 
     if not title:
         warnings.append("could not extract job title")
@@ -270,5 +606,6 @@ def extract_metadata(job_text: str) -> dict:
         "company": company,
         "location": location,
         "employment_type": employment_type,
+        **extra_metadata,
         "warnings": warnings,
     }

@@ -7,10 +7,10 @@ export default function SettingsPage() {
     <>
       <Topbar title="Settings" subtitle="Preferences and configuration" />
 
-      <div className="max-w-2xl hyrra-stack">
+      <div className="max-w-2xl hyrra-page-stack">
         <Card>
           <h3 className="text-sm font-semibold mb-4">Profile</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="hyrra-section-stack">
             <div>
               <label className="text-xs text-muted mb-1 block">Display name</label>
               <input type="text" defaultValue="User" className="w-full" />
@@ -24,14 +24,14 @@ export default function SettingsPage() {
 
         <Card>
           <h3 className="text-sm font-semibold mb-4">AI Preferences</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="hyrra-section-stack">
             {[
               { label: "Strict ATS mode", desc: "Optimize all AI outputs for ATS compatibility" },
               { label: "Conservative tone", desc: "Use more professional, conservative language" },
               { label: "Auto-match new jobs", desc: "Automatically run match when a new job is saved" },
             ].map((pref) => (
-              <div key={pref.label} className="flex items-center justify-between">
-                <div>
+              <div key={pref.label} className="flex items-center justify-between gap-4 rounded-xl border border-white/5 bg-white/[0.02] p-3">
+                <div className="min-w-0">
                   <div className="text-sm font-medium">{pref.label}</div>
                   <div className="text-xs text-muted">{pref.desc}</div>
                 </div>

@@ -73,18 +73,18 @@ export default function MatchesPage() {
       <Topbar
         title="Matches"
         subtitle={`${matches.length} match analyses · ranked by score`}
-        action={<GradientButton size="sm" onClick={openNewMatch}><Sparkles size={14} /> Run new match</GradientButton>}
+        action={<GradientButton onClick={openNewMatch}><Sparkles size={16} /> Run new match</GradientButton>}
       />
 
       {loading ? (
         <div className="flex items-center justify-center py-32 text-muted">Loading…</div>
       ) : matches.length === 0 ? (
-        <EmptyState title="No matches yet" description="Run your first match from the Jobs page." />
+        <Card><EmptyState title="No matches yet" description="Run your first match from the Jobs page." /></Card>
       ) : (
-        <div className="space-y-3">
+        <div className="hyrra-section-stack">
           {matches.map((m) => (
             <Card key={m.id} hover>
-              <div className="flex flex-col md:flex-row md:items-center gap-6">
+              <div className="flex flex-col lg:flex-row lg:items-center gap-6">
                 {/* Left info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-1.5">
@@ -102,7 +102,7 @@ export default function MatchesPage() {
                 </div>
 
                 {/* Skills */}
-                <div className="w-64 shrink-0 pl-6 border-l border-white/5">
+                <div className="w-full lg:w-64 shrink-0 lg:pl-6 lg:border-l border-white/5">
                   {m.matched_skills.length > 0 && (
                     <div className="mb-3">
                       <span className="text-[10px] text-muted uppercase tracking-wider block mb-1.5">Matched skills</span>
@@ -118,7 +118,7 @@ export default function MatchesPage() {
                 </div>
 
                 {/* AI button */}
-                <div className="pl-6 border-l border-white/5">
+                <div className="lg:pl-6 lg:border-l border-white/5">
                   <GradientButton variant="secondary" size="sm" onClick={() => openAi(m)}>
                     <Sparkles size={14} /> View explanation
                   </GradientButton>

@@ -75,20 +75,20 @@ export default function ResumesPage() {
       <Topbar
         title="Resumes"
         subtitle="Your saved resumes and parsed profiles"
-        action={<GradientButton size="sm" onClick={() => setModalOpen(true)}><Plus size={14} /> Add resume</GradientButton>}
+        action={<GradientButton onClick={() => setModalOpen(true)}><Plus size={16} /> Add resume</GradientButton>}
       />
 
       {loading ? (
         <div className="flex items-center justify-center py-32 text-muted">Loading...</div>
       ) : resumes.length === 0 ? (
-        <EmptyState title="No resumes yet" description="Add your first resume to start matching." />
+        <Card><EmptyState title="No resumes yet" description="Add your first resume to start matching." /></Card>
       ) : (
         <div className="hyrra-grid-3">
           {resumes.map((r) => {
             const profile = r.parsed_profile;
             const wordCount = r.raw_text.split(/\s+/).length;
             return (
-              <Card key={r.id} hover>
+              <Card key={r.id} hover className="flex h-full flex-col">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-accent-cyan/10 text-accent-cyan flex items-center justify-center"><FileText size={18} /></div>
@@ -112,7 +112,7 @@ export default function ResumesPage() {
                     <span className="text-[10px] text-muted uppercase tracking-wider flex items-center gap-1"><FolderOpen size={10} /> {profile.projects.length} projects detected</span>
                   </div>
                 )}
-                <div className="mt-4 pt-4 border-t border-white/5 flex justify-end">
+                <div className="mt-auto pt-4 border-t border-white/5 flex justify-end">
                   <Link href="/matches">
                     <GradientButton size="sm">Run Match</GradientButton>
                   </Link>

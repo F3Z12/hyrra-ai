@@ -9,6 +9,7 @@ AI enrichment is only triggered when explicitly requested via the /v1/ai/ endpoi
 """
 
 import json
+import re
 
 from openai import OpenAI
 
@@ -115,8 +116,27 @@ _COVER_LETTER_SYSTEM_PROMPT = (
     "You are an expert cover letter writer for competitive tech internships. "
     "Write highly tailored, specific cover letters that demonstrate genuine understanding "
     "of the company and role. Avoid generic phrases like 'I am writing to express my interest'. "
-    "Tone: confident, specific, student-level. Length: 200-300 words."
+    "Tone: confident, specific, student-level. Length: 200-300 words. "
+    "The output must be a complete, submission-ready cover letter with zero template placeholders. "
+    "Start strictly with 'Dear Hiring Manager,'. Do not include dates, addresses, bracketed fields, "
+    "or placeholders like '[Your Name]', '[City]', or '[Date]'."
 )
+
+
+def _clean_cover_letter_output(text: str) -> str:
+    """Enforce no-placeholder cover letter formatting constraints."""
+    cleaned = (text or "").strip()
+    salutation = "Dear Hiring Manager,"
+    salutation_index = cleaned.lower().find(salutation.lower())
+    if salutation_index >= 0:
+        cleaned = cleaned[salutation_index:].strip()
+    else:
+        cleaned = f"{salutation}\n\n{cleaned}"
+
+    cleaned = re.sub(r"\[[^\]]+\]", "", cleaned)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
+    return cleaned.strip()
 
 
 def generate_tailored_cover_letter(
@@ -167,11 +187,16 @@ POSITIONING STRATEGY: {match_result.get("suggested_angle", "")}
 
 RULES:
 - 200-300 words
+- Start strictly with: Dear Hiring Manager,
+- DO NOT use placeholders or brackets like [Your Name], [City], [Date], [Company], or [Hiring Manager]
+- Do not include sender address, recipient address, city, date, or any fill-in fields
 - Be specific to the company and role
 - Highlight matched skills with concrete examples from projects/experience
 - Address missing skills honestly (show willingness to learn or related experience)
 - No generic phrases
-- Strong opening, specific middle, confident close"""
+- Strong opening, specific middle, confident close
+- End with a standard professional sign-off. If the candidate's name is not available in the context, end with 'Sincerely,' and do not invent a name
+- The letter must be 100% ready for submission with zero manual fill-in required"""
 
     client = OpenAI(api_key=api_key.strip())
 
@@ -184,7 +209,7 @@ RULES:
             ],
             temperature=0.8,
         )
-        return resp.choices[0].message.content.strip()
+        return _clean_cover_letter_output(resp.choices[0].message.content.strip())
 
     except Exception as e:
         raise RuntimeError(f"AI generation failed: {str(e)}")

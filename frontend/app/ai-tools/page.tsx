@@ -4,7 +4,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
 import { GradientButton } from "@/components/ui/GradientButton";
 import { Modal } from "@/components/ui/Modal";
-import { Sparkles, FileText, PenLine, ArrowRight, Copy, Lock } from "lucide-react";
+import { Sparkles, FileText, PenLine, ArrowRight, Lock } from "lucide-react";
 import { listJobs, listResumes, explainMatch, generateCoverLetter } from "@/lib/api";
 import type { Job, Resume, AIExplanation } from "@/types/api";
 
@@ -18,17 +18,29 @@ export default function AIToolsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [explanation, setExplanation] = useState<AIExplanation | null>(null);
-  const [coverLetter, setCoverLetter] = useState("");
+  const [coverLetterMessage, setCoverLetterMessage] = useState("");
   const [lastGenJob, setLastGenJob] = useState("");
 
   const openAction = (action: "explain" | "cover") => {
     setError("");
+    setCoverLetterMessage("");
     Promise.all([listJobs(), listResumes()]).then(([j, r]) => {
       setJobs(j.jobs); setResumes(r.resumes);
       if (j.jobs.length) setSelJob(j.jobs[0].id);
       if (r.resumes.length) setSelResume(r.resumes[0].id);
     });
     setActionModal(action);
+  };
+
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.URL.revokeObjectURL(url);
   };
 
   const runAction = async () => {
@@ -40,8 +52,9 @@ export default function AIToolsPage() {
         const r = await explainMatch(selJob, selResume, apiKey);
         setExplanation(r.explanation);
       } else {
-        const r = await generateCoverLetter(selJob, selResume, apiKey);
-        setCoverLetter(r.cover_letter);
+        const pdfBlob = await generateCoverLetter(selJob, selResume, apiKey);
+        downloadBlob(pdfBlob, "cover_letter.pdf");
+        setCoverLetterMessage("Cover letter downloaded successfully.");
         setLastGenJob(`${job?.title || "Job"} · ${job?.company || ""}`);
       }
       setActionModal(null);
@@ -81,15 +94,17 @@ export default function AIToolsPage() {
     <>
       <Topbar title="AI Tools" subtitle="Augment your job hunt with focused, opinionated AI" />
 
-      <div className="hyrra-grid-3 mb-8">
+      <div className="hyrra-page-stack">
+      <div className="hyrra-grid-3">
         {tools.map((tool) => (
-          <Card key={tool.title} className={`relative overflow-hidden bg-gradient-to-b ${tool.gradient}`}>
+          <Card key={tool.title} className={`relative overflow-hidden bg-gradient-to-b ${tool.gradient} flex h-full flex-col`}>
             {tool.disabled && (
               <span className="absolute top-4 right-4 bg-warning/10 text-warning text-[10px] font-medium px-2 py-0.5 rounded-full border border-warning/20 flex items-center gap-1"><Lock size={9} /> SOON</span>
             )}
             <div className="mb-4 w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">{tool.icon}</div>
             <h3 className="text-base font-semibold mb-2">{tool.title}</h3>
             <p className="text-xs text-muted leading-relaxed mb-5">{tool.desc}</p>
+            <div className="mt-auto">
             {tool.disabled ? (
               <span className="text-xs text-muted-dark font-medium">Coming soon</span>
             ) : (
@@ -97,6 +112,7 @@ export default function AIToolsPage() {
                 {tool.label} <ArrowRight size={12} />
               </GradientButton>
             )}
+            </div>
           </Card>
         ))}
       </div>
@@ -115,24 +131,18 @@ export default function AIToolsPage() {
       )}
 
       {/* Cover letter result */}
-      {coverLetter && (
+      {coverLetterMessage && (
         <Card>
-          <div className="flex items-center justify-between mb-3">
+          <div>
             <div>
               <h3 className="text-sm font-semibold">Latest cover letter</h3>
               {lastGenJob && <p className="text-xs text-muted">Generated for {lastGenJob}</p>}
-            </div>
-            <div className="flex gap-2">
-              <GradientButton variant="secondary" size="sm" onClick={() => navigator.clipboard.writeText(coverLetter)}><Copy size={12} /> Copy</GradientButton>
-              <GradientButton variant="secondary" size="sm" onClick={() => {
-                const blob = new Blob([coverLetter], { type: "text/plain" });
-                const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "cover_letter.txt"; a.click();
-              }}>Download .txt</GradientButton>
+              <p className="text-sm text-muted mt-2">{coverLetterMessage}</p>
             </div>
           </div>
-          <pre className="text-sm text-muted whitespace-pre-wrap font-sans leading-relaxed bg-background/50 rounded-xl p-5 border border-border">{coverLetter}</pre>
         </Card>
       )}
+      </div>
 
       {/* Action modal */}
       <Modal open={!!actionModal} onClose={() => setActionModal(null)} title={actionModal === "explain" ? "Run AI Analysis" : "Generate Cover Letter"}>

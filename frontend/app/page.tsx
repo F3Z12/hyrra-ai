@@ -47,7 +47,7 @@ export default function DashboardPage() {
       <Topbar
         title="Dashboard"
         subtitle="Welcome back — here's your job hunt at a glance."
-        action={<Link href="/matches"><GradientButton size="sm"><GitCompareArrows size={14} /> Run AI match</GradientButton></Link>}
+        action={<Link href="/matches"><GradientButton><GitCompareArrows size={16} /> Run AI match</GradientButton></Link>}
       />
 
       {loading ? (
@@ -62,7 +62,7 @@ export default function DashboardPage() {
                   <span className="text-[10px] uppercase tracking-wider text-muted font-bold">{s.label}</span>
                   <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center"><s.icon size={14} className={s.color} /></div>
                 </div>
-                <div className="text-4xl font-bold tracking-tight">{s.value}</div>
+                <div className="text-4xl font-bold tracking-tight leading-none">{s.value}</div>
               </Card>
             ))}
           </div>
@@ -77,10 +77,10 @@ export default function DashboardPage() {
               {jobs.length === 0 ? (
                 <EmptyState title="No jobs saved yet" description="Save your first job to get started." />
               ) : (
-                <div className="space-y-3">
+                <div className="hyrra-section-stack">
                   {jobs.slice(0, 4).map((job) => (
                     <Link key={job.id} href={`/jobs/${job.id}`} className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/[0.03] transition-colors">
-                      <div className="w-9 h-9 rounded-lg bg-accent-violet/10 text-accent-violet flex items-center justify-center text-xs font-bold">{initials(job.company || "??")}</div>
+                      <div className="w-10 h-10 shrink-0 rounded-lg bg-accent-violet/10 text-accent-violet flex items-center justify-center text-xs font-bold">{initials(job.company || "??")}</div>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-foreground truncate">{job.title || "Untitled"}</div>
                         <div className="text-xs text-muted">{job.company} · {timeAgo(job.created_at)}</div>
@@ -100,7 +100,7 @@ export default function DashboardPage() {
               {apps.length === 0 ? (
                 <EmptyState title="No applications yet" description="Start tracking your applications." />
               ) : (
-                <div className="space-y-3">
+                <div className="hyrra-section-stack">
                   {["saved", "applied", "interviewing", "offer", "rejected"].map((status) => (
                     <div key={status} className="flex items-center justify-between">
                       <StatusPill status={status} />

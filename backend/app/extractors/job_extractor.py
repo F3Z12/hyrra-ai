@@ -55,7 +55,7 @@ def extract_job_profile(job_text: str) -> dict:
     # 5. Merge all warnings
     warnings = metadata["warnings"] + sections["warnings"]
 
-    return {
+    profile = {
         "title": metadata["title"],
         "company": metadata["company"],
         "location": metadata["location"],
@@ -68,3 +68,16 @@ def extract_job_profile(job_text: str) -> dict:
         "keywords": keywords,
         "parse_warnings": warnings,
     }
+
+    for key in (
+        "work_mode",
+        "work_term",
+        "application_deadline",
+        "application_method",
+        "application_email",
+        "job_id",
+    ):
+        if metadata.get(key):
+            profile[key] = metadata[key]
+
+    return profile

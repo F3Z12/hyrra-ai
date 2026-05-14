@@ -3,8 +3,6 @@ import { useEffect, useState } from "react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
 import { GradientButton } from "@/components/ui/GradientButton";
-import { MatchScoreBadge } from "@/components/ui/MatchScoreBadge";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { Modal } from "@/components/ui/Modal";
 import { Plus, FileText, Calendar } from "lucide-react";
 import { listApplications, updateApplication, listJobs, listResumes, createApplication } from "@/lib/api";
@@ -80,7 +78,7 @@ export default function ApplicationsPage() {
       <Topbar
         title="Applications"
         subtitle="Pipeline of every role you're tracking"
-        action={<GradientButton size="sm" onClick={openModal}><Plus size={14} /> New application</GradientButton>}
+        action={<GradientButton onClick={openModal}><Plus size={16} /> New application</GradientButton>}
       />
 
       {loading ? (
@@ -89,21 +87,21 @@ export default function ApplicationsPage() {
         <div className="overflow-x-auto pb-4 -mx-4 px-4 sm:mx-0 sm:px-0">
           <div className="min-w-[1000px]" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: '16px' }}>
           {grouped.map((col) => (
-            <div key={col.key} className="space-y-3 bg-[#111217]/50 border border-white/5 rounded-2xl p-4 min-h-[600px]">
+            <div key={col.key} className="space-y-3 bg-[#111217]/50 border border-white/5 rounded-2xl p-4 min-h-[520px]">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className={`w-2 h-2 rounded-full ${col.dot}`} />
                   <span className="text-sm font-semibold">{col.label}</span>
                   <span className="text-xs text-muted-dark font-mono">{col.items.length}</span>
                 </div>
-                <button onClick={openModal} className="text-muted-dark hover:text-foreground transition-colors cursor-pointer"><Plus size={14} /></button>
+                <button onClick={openModal} className="hyrra-icon-action !w-8 !h-8 cursor-pointer"><Plus size={14} /></button>
               </div>
 
               {col.items.length === 0 ? (
-                <div className="bg-card border border-border rounded-2xl p-6 text-center text-xs text-muted-dark">No items</div>
+                <div className="bg-card/60 border border-border rounded-2xl p-5 text-center text-xs text-muted-dark">No items</div>
               ) : (
                 col.items.map((app) => (
-                  <Card key={app.id} hover className="cursor-pointer" onClick={() => advanceStatus(app)}>
+                  <Card key={app.id} hover className="cursor-pointer hyrra-card-compact" onClick={() => advanceStatus(app)}>
                     <div className="text-sm font-semibold text-foreground">{app.job_title || "Job"}</div>
                     <div className="text-xs text-muted mb-2">{app.job_company}</div>
                     <div className="flex items-center gap-2 text-[10px] text-muted-dark mb-1">

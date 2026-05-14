@@ -12,14 +12,14 @@ RESPONSIBILITY_HEADERS = [
     "responsibilities", "what you'll do", "what you will do",
     "job duties", "key responsibilities", "role responsibilities",
     "your role", "about the role", "the role",
-    "what you'll work on", "day to day",
+    "what you'll work on", "day to day", "job responsibilities",
 ]
 
 QUALIFICATION_HEADERS = [
     "qualifications", "requirements", "what we're looking for",
     "what you'll need", "what you will need", "minimum qualifications",
     "required qualifications", "who you are", "about you",
-    "must have", "what you bring",
+    "must have", "what you bring", "required skills",
 ]
 
 PREFERRED_HEADERS = [
@@ -71,6 +71,7 @@ def _extract_bullet_items(lines: list[str]) -> list[str]:
     items = []
     for line in lines:
         cleaned = re.sub(r"^[\-\*\u2022\u25cf\u25e6\u25aa\u25b8\u25ba\u2192\d.)\]]+\s*", "", line).strip()
+        cleaned = re.sub(r"^[\-\*\u2022\u25cf\u25e6\u25aa\u25b8\u25ba\u2192]+", "", cleaned).strip()
         if cleaned and len(cleaned) > 5:
             items.append(cleaned)
     return items
