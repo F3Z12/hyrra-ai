@@ -18,6 +18,8 @@ from app.api.applications import router as applications_router
 from app.api.matches import router as matches_router
 from app.api.ai import router as ai_router
 from app.api.outreach import router as outreach_router
+from app.api.candidate_profile import router as candidate_profile_router
+from app.api.apply_agent import router as apply_agent_router
 
 
 @asynccontextmanager
@@ -50,3 +52,5 @@ app.include_router(applications_router, prefix="/v1/applications", tags=["Applic
 app.include_router(matches_router, prefix="/v1/matches", tags=["Matches"])
 app.include_router(ai_router, prefix="/v1/ai", tags=["AI"])
 app.include_router(outreach_router, prefix="/v1/outreach", tags=["Outreach"])
+app.include_router(candidate_profile_router, prefix="/v1/candidate-profile", tags=["Candidate Profile"])
+app.include_router(apply_agent_router,       prefix="/v1/apply-agent",       tags=["Apply Agent"])
