@@ -730,6 +730,54 @@
     ].join("\n");
   }
 
+  // ── Apply Demo context extractor ──────────────────────────────────────────
+  // Used when popup detects the controlled Hyrra mock application page.
+  // Returns stable form field metadata from data-apply-field attributes.
+  // No heuristics — only works on pages with data-hyrra-apply-demo="true".
+  window.extractApplyDemoContext = function extractApplyDemoContext() {
+    const marker = document.querySelector('[data-hyrra-apply-demo="true"]');
+    if (!marker) {
+      return { isApplyDemo: false, jobId: null, targetUrl: "", pageTitle: "", formFields: [] };
+    }
+
+    // Job ID comes from the DOM attribute set by React state — never from localStorage.
+    const jobIdRaw = marker.getAttribute("data-hyrra-job-id");
+    const jobId = jobIdRaw ? (parseInt(jobIdRaw, 10) || null) : null;
+    const targetUrl = window.location.href;
+    const pageTitle = document.title ||
+      (document.querySelector("h1") || {}).textContent?.trim() || "";
+
+    const formFields = [];
+    document.querySelectorAll("[data-apply-field]").forEach(function (el) {
+      const fieldKey = el.dataset.applyField;
+      if (!fieldKey) return;
+
+      // Field type: select / textarea / input type
+      var fieldType;
+      if (el.tagName === "SELECT") fieldType = "select";
+      else if (el.tagName === "TEXTAREA") fieldType = "textarea";
+      else fieldType = el.type || "text";
+
+      // Label resolution order:
+      // 1. <label for="id"> text   2. aria-label   3. placeholder   4. field_key
+      var label = fieldKey;
+      var idAttr = el.id || el.name || fieldKey;
+      var labelEl = idAttr ? document.querySelector('label[for="' + idAttr + '"]') : null;
+      if (labelEl) {
+        label = (labelEl.textContent || "").replace(/\s*\*\s*$/, "").trim() || fieldKey;
+      } else {
+        label = el.getAttribute("aria-label") || el.placeholder || fieldKey;
+      }
+
+      // Stable CSS selector using the data attribute (matches the wrapper too)
+      var selector = '[data-apply-field="' + fieldKey + '"]';
+
+      formFields.push({ field_key: fieldKey, label: label, field_type: fieldType, selector: selector });
+    });
+
+    return { isApplyDemo: true, jobId: jobId, targetUrl: targetUrl, pageTitle: pageTitle, formFields: formFields };
+  };
+
   window.extractJobText = function extractJobText() {
     const hostname = window.location.hostname.replace(/^www\./, "");
     if (hostname.includes("waterlooworks.uwaterloo.ca")) {

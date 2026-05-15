@@ -33,6 +33,7 @@ def create_apply_agent_session(
     job_id: int,
     form_fields_json: str,
     resume_id: int | None = None,
+    target_url: str | None = None,
 ) -> ApplyAgentSession:
     """Create an Apply Agent session. FK validation is done in the router."""
     session = ApplyAgentSession(
@@ -40,6 +41,7 @@ def create_apply_agent_session(
         job_id=job_id,
         resume_id=resume_id,
         status="created",
+        target_url=target_url,
         form_fields_json=form_fields_json,
     )
     db.add(session)

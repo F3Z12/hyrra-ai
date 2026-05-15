@@ -2,12 +2,14 @@
 Apply Agent API routes.
 
 Endpoints:
-- POST   /v1/apply-agent/sessions                                   → create session + suggestions
-- GET    /v1/apply-agent/sessions/{session_id}                      → get session with suggestions
-- PATCH  /v1/apply-agent/sessions/{session_id}                      → update session status
-- PATCH  /v1/apply-agent/sessions/{session_id}/suggestions/{field_key} → resolve a field
-- POST   /v1/apply-agent/sessions/{session_id}/actions              → log a user action
-- GET    /v1/apply-agent/sessions/{session_id}/log                  → get full action log
+- POST   /v1/apply-agent/sessions                                           → create session + suggestions
+- GET    /v1/apply-agent/sessions/{session_id}                              → get session with suggestions
+- PATCH  /v1/apply-agent/sessions/{session_id}                              → update session status
+- PATCH  /v1/apply-agent/sessions/{session_id}/suggestions/{field_key}      → resolve a field
+- POST   /v1/apply-agent/sessions/{session_id}/actions                      → log a user action
+- GET    /v1/apply-agent/sessions/{session_id}/log                          → get full action log
+- GET    /v1/apply-agent/sessions/{session_id}/fill-plan                    → OpenClaw V2 fill plan
+- POST   /v1/apply-agent/sessions/{session_id}/run-openclaw-fill            → trigger local OpenClaw run (dev only)
 """
 
 import json
@@ -16,6 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.core.config import ENABLE_LOCAL_OPENCLAW_RUNNER, OPENCLAW_MAX_TIMEOUT
 from app.database.db import get_db
 from app.database.models import (
     CandidateProfile,
@@ -36,6 +39,9 @@ from app.services.apply_agent_service import (
     get_apply_agent_action_log,
 )
 from app.services.apply_agent_suggestion_service import generate_all_suggestions
+from app.services.apply_agent_fill_plan_service import build_fill_plan
+from app.services.openclaw_runner_service import run_openclaw_fill
+from app.services.openclaw_task_service import generate_openclaw_prompt
 
 router = APIRouter()
 
@@ -48,6 +54,7 @@ class FormFieldInput(BaseModel):
     field_key:  str
     label:      str
     field_type: str
+    selector:   str | None = None   # CSS selector on the target page (used by OpenClaw V2)
 
 
 class CreateApplyAgentSessionRequest(BaseModel):
@@ -55,6 +62,7 @@ class CreateApplyAgentSessionRequest(BaseModel):
     job_id:               int
     resume_id:            int | None    = None
     api_key:              str | None    = None
+    target_url:           str | None    = None   # URL of the external application page
     form_fields:          list[FormFieldInput]
 
 
@@ -72,6 +80,10 @@ class LogActionRequest(BaseModel):
 
 class UpdateSessionStatusRequest(BaseModel):
     status: str                     # created / in_progress / completed / abandoned
+
+
+class RunOpenClawFillRequest(BaseModel):
+    timeout_seconds: int | None = None   # if omitted, OPENCLAW_MAX_TIMEOUT is used
 
 
 # ---------------------------------------------------------------------------
@@ -104,11 +116,12 @@ def _session_to_dict(session, suggestions: list) -> dict:
         "job_id":                session.job_id,
         "resume_id":             session.resume_id,
         "status":                session.status,
+        "target_url":            session.target_url,
         # Denormalised for frontend convenience
-        "job_title":     session.job.title             if session.job               else None,
-        "job_company":   session.job.company           if session.job               else None,
+        "job_title":     session.job.title               if session.job               else None,
+        "job_company":   session.job.company             if session.job               else None,
         "profile_label": session.candidate_profile.label if session.candidate_profile else None,
-        "resume_name":   session.resume.name           if session.resume            else None,
+        "resume_name":   session.resume.name             if session.resume            else None,
         "suggestions":   [_suggestion_to_dict(s) for s in suggestions],
         "created_at":    session.created_at.isoformat() if session.created_at else None,
         "updated_at":    session.updated_at.isoformat() if session.updated_at else None,
@@ -174,6 +187,7 @@ async def create_session_endpoint(
         candidate_profile_id=request.candidate_profile_id,
         job_id=request.job_id,
         resume_id=request.resume_id,
+        target_url=request.target_url,
         form_fields_json=json.dumps(form_fields_list),
     )
 
@@ -299,3 +313,136 @@ async def update_session_status_endpoint(
 
     suggestions = get_field_suggestions(db, session_id)
     return _session_to_dict(session, suggestions)
+
+
+@router.get("/sessions/{session_id}/fill-plan")
+async def get_fill_plan_endpoint(session_id: int, db: Session = Depends(get_db)):
+    """
+    Return the OpenClaw V2 fill plan for a session.
+
+    Classifies each field suggestion into 'fillable' (safe for OpenClaw auto-fill)
+    or 'blocked' (requires human review or has no safe value).
+
+    Fillable criteria (all must be met):
+    - confidence >= 80
+    - needs_review == False
+    - source in ("profile", "deterministic")
+    - a non-null value exists (final_value if resolved, otherwise suggested_value)
+    - resolved_status is not "skipped"
+    """
+    session = get_apply_agent_session(db, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found.")
+
+    suggestions = get_field_suggestions(db, session_id)
+    plan = build_fill_plan(session, suggestions)
+    result = plan.model_dump()
+    # Include the generated task prompt so callers can copy it for debug/fallback use
+    result["openclaw_prompt"] = generate_openclaw_prompt(plan)
+    return result
+
+
+# ---------------------------------------------------------------------------
+# OpenClaw runner  (dev/local only — guarded by ENABLE_LOCAL_OPENCLAW_RUNNER)
+# ---------------------------------------------------------------------------
+
+_RUNNER_MIN_TIMEOUT = 30   # floor: never pass less than 30s to OpenClaw
+
+
+@router.post("/sessions/{session_id}/run-openclaw-fill")
+async def run_openclaw_fill_endpoint(
+    session_id: int,
+    request:    RunOpenClawFillRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Trigger a local OpenClaw subprocess to auto-fill the application form.
+
+    Dev/local only — requires ENABLE_LOCAL_OPENCLAW_RUNNER=true in .env.
+
+    The backend generates the OpenClaw prompt entirely from the session's trusted
+    fill plan; no prompt or command text is accepted from the caller.
+
+    Prerequisites:
+    - OpenClaw gateway running         (openclaw gateway start)
+    - OpenClaw managed browser started (openclaw browser start)
+    - Private-network access enabled:
+        openclaw config set browser.ssrfPolicy.dangerouslyAllowPrivateNetwork true --strict-json
+    - ENABLE_LOCAL_OPENCLAW_RUNNER=true in .env
+    """
+    if not ENABLE_LOCAL_OPENCLAW_RUNNER:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Local OpenClaw runner is disabled. "
+                "Set ENABLE_LOCAL_OPENCLAW_RUNNER=true in .env and restart the backend."
+            ),
+        )
+
+    session = get_apply_agent_session(db, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found.")
+
+    # Clamp timeout: [_RUNNER_MIN_TIMEOUT, OPENCLAW_MAX_TIMEOUT]
+    raw = request.timeout_seconds if request.timeout_seconds is not None else OPENCLAW_MAX_TIMEOUT
+    timeout = max(_RUNNER_MIN_TIMEOUT, min(raw, OPENCLAW_MAX_TIMEOUT))
+
+    suggestions = get_field_suggestions(db, session_id)
+    plan = build_fill_plan(session, suggestions)
+    result = run_openclaw_fill(plan, timeout)
+
+    # --- Post-run action logging (best-effort) ---
+    # Parse structured JSON output from OpenClaw and write immutable audit entries.
+    # Failures here must NOT affect the API response — the run result is returned regardless.
+    if result.openclaw_json and isinstance(result.openclaw_json, dict):
+        oc = result.openclaw_json
+        try:
+            for entry in oc.get("filled") or []:
+                fk = entry.get("field_key") or ""
+                if not fk:
+                    continue
+                log_apply_agent_action(
+                    db,
+                    session_id=session_id,
+                    field_key=fk,
+                    action_type="agent_filled",
+                    agent_suggestion=None,
+                    final_value=entry.get("value_entered"),
+                )
+        except Exception:
+            pass  # logging failure must not surface to the caller
+
+        try:
+            for entry in oc.get("failed") or []:
+                fk = entry.get("field_key") or ""
+                if not fk or fk == "__page_verification__":
+                    continue
+                log_apply_agent_action(
+                    db,
+                    session_id=session_id,
+                    field_key=fk,
+                    action_type="agent_failed",
+                    agent_suggestion=entry.get("error"),
+                    final_value=None,
+                )
+        except Exception:
+            pass
+
+    return {
+        "session_id":          session_id,
+        "status":              result.status,
+        "duration_ms":         result.duration_ms,
+        "command":             result.command,
+        "openclaw_json":       result.openclaw_json,
+        "final_text":          result.final_text,
+        "stdout":              result.stdout,
+        "stderr":              result.stderr,
+        "error":               result.error,
+        # Debug fields — safe to expose; prompt itself is never returned
+        "prompt_length":         result.prompt_length,
+        "prompt_preview":        result.prompt_preview,
+        "resolved_command":      result.resolved_command,
+        "argv_without_prompt":   result.argv_without_prompt,
+        "timeout_used":          result.timeout_used,
+        "codex_bin_configured":  result.codex_bin_configured,
+    }

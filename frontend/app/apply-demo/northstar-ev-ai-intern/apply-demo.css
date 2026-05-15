@@ -1,0 +1,79 @@
+/*
+ * apply-demo.css
+ *
+ * Scoped styles for the Northstar EV demo application page.
+ *
+ * Two categories:
+ *  1. .nstar-form — overrides Hyrra's dark global input styles with light portal styling.
+ *  2. .hyrra-review-required / .hyrra-review-warning — injected at runtime by OpenClaw
+ *     to flag AI-drafted fields that need human review before submission.
+ *     These MUST be static CSS (not Tailwind JIT) because Tailwind only generates classes
+ *     that appear at build time in JSX.
+ */
+
+/* ── Form input overrides ───────────────────────────────────────────────── */
+
+.nstar-form input,
+.nstar-form textarea,
+.nstar-form select {
+  display: block;
+  width: 100%;
+  background-color: #ffffff !important;
+  color: #111827 !important;
+  border: 1.5px solid #d1d5db !important;
+  border-radius: 8px !important;
+  padding: 9px 12px !important;
+  font-size: 14px !important;
+  font-family: inherit;
+  line-height: 1.5;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+}
+
+.nstar-form input::placeholder,
+.nstar-form textarea::placeholder {
+  color: #9ca3af !important;
+}
+
+.nstar-form input:focus,
+.nstar-form textarea:focus,
+.nstar-form select:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12) !important;
+  outline: none !important;
+}
+
+.nstar-form select {
+  appearance: auto;
+  cursor: pointer;
+  padding-right: 28px !important;
+}
+
+.nstar-form textarea {
+  resize: vertical;
+  min-height: 90px;
+}
+
+/* ── OpenClaw runtime-injected review indicators ────────────────────────── */
+/*
+ * OpenClaw adds class="hyrra-review-required" to [data-field-key] wrappers
+ * after filling an AI-sourced field.
+ * It also inserts a <div class="hyrra-review-warning"> after the input.
+ */
+
+.hyrra-review-required {
+  border-left: 3px solid #f59e0b;
+  background-color: rgba(245, 158, 11, 0.05);
+  padding-left: 10px;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.hyrra-review-warning {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: #b45309;
+  margin-top: 5px;
+  line-height: 1.4;
+}

@@ -13,6 +13,14 @@ import type {
   UpdateOutreachMessagePayload,
   GenerateOutreachMessagePayload,
   GeneratedOutreachMessageResponse,
+  CandidateProfile,
+  CandidateProfilePayload,
+  ApplyAgentSession,
+  ApplyAgentFieldSuggestion,
+  ApplyAgentActionLog,
+  CreateApplySessionPayload,
+  ResolveFieldPayload,
+  LogActionPayload,
 } from "@/types/api";
 
 const BASE = process.env.NEXT_PUBLIC_BACKEND_BASE ?? "http://127.0.0.1:8000";
@@ -98,6 +106,34 @@ export const createMatch = (job_id: number, resume_id: number) =>
 export const scoreText = (job_text: string, resume_text: string) =>
   request<MatchTextResult>("/v1/matches/score-text", { method: "POST", body: JSON.stringify({ job_text, resume_text }) });
 export const deleteMatch = (id: number) => request<{ deleted: boolean }>(`/v1/matches/${id}`, { method: "DELETE" });
+
+// ── Candidate Profile ─────────────────────────────────────────────────
+export const getCandidateProfile = (): Promise<CandidateProfile | null> =>
+  request<CandidateProfile>("/v1/candidate-profile").catch((e) => {
+    if (e instanceof Error && e.message.includes("No candidate profile found")) return null;
+    throw e;
+  });
+export const createCandidateProfile = (payload: CandidateProfilePayload) =>
+  request<CandidateProfile>("/v1/candidate-profile", { method: "POST", body: JSON.stringify(payload) });
+export const updateCandidateProfile = (payload: Partial<CandidateProfilePayload>) =>
+  request<CandidateProfile>("/v1/candidate-profile", { method: "PATCH", body: JSON.stringify(payload) });
+
+// ── Apply Agent ───────────────────────────────────────────────────────
+export const createApplySession = (payload: CreateApplySessionPayload) =>
+  request<ApplyAgentSession>("/v1/apply-agent/sessions", { method: "POST", body: JSON.stringify(payload) });
+export const getApplySession = (sessionId: number) =>
+  request<ApplyAgentSession>(`/v1/apply-agent/sessions/${sessionId}`);
+export const resolveFieldSuggestion = (sessionId: number, fieldKey: string, payload: ResolveFieldPayload) =>
+  request<ApplyAgentFieldSuggestion>(`/v1/apply-agent/sessions/${sessionId}/suggestions/${encodeURIComponent(fieldKey)}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+export const logApplyAction = (sessionId: number, payload: LogActionPayload) =>
+  request<ApplyAgentActionLog>(`/v1/apply-agent/sessions/${sessionId}/actions`, { method: "POST", body: JSON.stringify(payload) });
+export const getApplyActionLog = (sessionId: number) =>
+  request<{ session_id: number; actions: ApplyAgentActionLog[] }>(`/v1/apply-agent/sessions/${sessionId}/log`);
+export const updateApplySession = (sessionId: number, status: string) =>
+  request<ApplyAgentSession>(`/v1/apply-agent/sessions/${sessionId}`, { method: "PATCH", body: JSON.stringify({ status }) });
 
 // ── AI ────────────────────────────────────────────────────────────────
 export const explainMatch = (job_id: number, resume_id: number, api_key: string) =>

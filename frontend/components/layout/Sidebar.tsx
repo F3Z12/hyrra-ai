@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Briefcase, FileText, KanbanSquare, GitCompareArrows, Sparkles, Settings, Zap } from "lucide-react";
+import { LayoutDashboard, Briefcase, FileText, KanbanSquare, GitCompareArrows, Sparkles, Settings, Zap, UserCircle, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -11,6 +11,8 @@ const NAV = [
   { label: "Applications", href: "/applications", icon: KanbanSquare },
   { label: "Matches", href: "/matches", icon: GitCompareArrows },
   { label: "AI Tools", href: "/ai-tools", icon: Sparkles },
+  { label: "Profile", href: "/candidate-profile", icon: UserCircle },
+  { label: "Apply Agent", href: "/apply-agent", icon: ClipboardList },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 

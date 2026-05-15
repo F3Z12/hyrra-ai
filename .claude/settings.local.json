@@ -3,7 +3,14 @@
     "allow": [
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\faizs\\\\OneDrive\\\\Desktop\\\\hyrra-ai\" -Force)",
       "Bash(Select-Object Name, FullName)",
-      "Bash(Test-Path *)"
+      "Bash(Test-Path *)",
+      "Bash(npx tsc *)",
+      "Bash(python -c ' *)",
+      "Bash(node -e ' *)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('app/services/openclaw_task_service.py'\\).read\\(\\)\\); print\\('OK'\\)\")",
+      "Bash(python -m py_compile app/core/config.py app/services/openclaw_runner_service.py app/api/apply_agent.py)",
+      "Bash(python -m py_compile app/core/config.py app/services/openclaw_runner_service.py app/services/openclaw_task_service.py app/api/apply_agent.py)",
+      "Bash(python -m py_compile app/core/config.py app/api/apply_agent.py app/services/openclaw_runner_service.py)"
     ]
   }
 }

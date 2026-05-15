@@ -184,7 +184,14 @@ class OutreachMessage(Base):
 # ---------------------------------------------------------------------------
 
 VALID_APPLY_AGENT_SESSION_STATUSES  = {"created", "in_progress", "completed", "abandoned"}
-VALID_APPLY_AGENT_ACTION_TYPES      = {"accepted", "edited", "skipped", "manual_entry"}
+VALID_APPLY_AGENT_ACTION_TYPES      = {
+    "accepted", "edited", "skipped", "manual_entry",
+    # OpenClaw V2 agent action types
+    "agent_filled",        # OpenClaw successfully filled the field
+    "agent_filled_draft",  # OpenClaw filled but flagged for human review
+    "agent_skipped",       # OpenClaw skipped (field did not meet auto-fill criteria)
+    "agent_failed",        # OpenClaw attempted but encountered an error
+}
 VALID_APPLY_AGENT_RESOLVED_STATUSES = {"accepted", "edited", "skipped"}
 
 
@@ -265,6 +272,7 @@ class ApplyAgentSession(Base):
     job_id               = Column(Integer, ForeignKey("jobs.id"),               nullable=False)
     resume_id            = Column(Integer, ForeignKey("resumes.id"),            nullable=True)
     status               = Column(String,  default="created")
+    target_url           = Column(String,  nullable=True)   # URL of the external application page (for OpenClaw V2)
     form_fields_json     = Column(Text,    nullable=True)   # JSON snapshot of field definitions at session creation
     created_at           = Column(DateTime, default=_utcnow)
     updated_at           = Column(DateTime, default=_utcnow, onupdate=_utcnow)

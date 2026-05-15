@@ -1,12 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Hyrra AI",
-  "version": "1.0",
-  "description": "Save job postings to Hyrra AI for matching and application tracking.",
-  "permissions": ["activeTab", "scripting"],
+  "version": "1.1",
+  "description": "Save job postings and run the Hyrra Apply Agent on supported pages.",
+  "permissions": ["activeTab", "scripting", "storage"],
   "host_permissions": [
     "http://localhost:8000/*",
-    "http://127.0.0.1:8000/*"
+    "http://127.0.0.1:8000/*",
+    "http://localhost:3000/*",
+    "http://127.0.0.1:3000/*"
   ],
   "action": {
     "default_title": "Hyrra AI",

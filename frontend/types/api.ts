@@ -196,3 +196,162 @@ export interface MatchTextResult {
     suggested_angle: string;
   };
 }
+
+// ── Candidate Profile ────────────────────────────────────────────────────
+
+export interface CandidateProfile {
+  id: number;
+  label: string;
+  resume_id: number | null;
+  // Identity
+  first_name: string | null;
+  last_name: string | null;
+  preferred_name: string | null;
+  email: string | null;
+  phone: string | null;
+  location_city: string | null;
+  location_region: string | null;
+  country: string | null;
+  // Education
+  school: string | null;
+  program: string | null;
+  degree: string | null;
+  graduation_month: number | null;
+  graduation_year: number | null;
+  gpa_optional: string | null;
+  // Links
+  linkedin_url: string | null;
+  github_url: string | null;
+  portfolio_url: string | null;
+  personal_website_url: string | null;
+  other_links_json: string | null;
+  // Work authorization / availability
+  work_authorization_country: string | null;
+  authorized_to_work: string | null;
+  requires_sponsorship: boolean | null;
+  available_start_date: string | null;
+  available_end_date: string | null;
+  preferred_work_location: string | null;
+  open_to_remote: boolean | null;
+  // Reusable application answer context
+  default_why_interested: string | null;
+  default_relevant_project: string | null;
+  default_additional_info: string | null;
+  default_cover_note: string | null;
+  // Technical highlights
+  top_skills_json: string | null;
+  top_projects_json: string | null;
+  // Timestamps
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+// ── Apply Agent ──────────────────────────────────────────────────────────
+
+export type ApplyAgentSessionStatus = "created" | "in_progress" | "completed" | "abandoned";
+export type ApplyAgentResolvedStatus = "accepted" | "edited" | "skipped";
+export type ApplyAgentActionType = "accepted" | "edited" | "skipped" | "manual_entry";
+export type ApplyAgentSuggestionSource = "profile" | "resume" | "deterministic" | "ai" | "none";
+
+export interface ApplyAgentFieldSuggestion {
+  id: number;
+  session_id: number;
+  field_key: string;
+  label: string;
+  field_type: string;
+  suggested_value: string | null;
+  confidence: number;
+  needs_review: boolean;
+  source: ApplyAgentSuggestionSource;
+  reasoning: string | null;
+  resolved_status: ApplyAgentResolvedStatus | null;
+  final_value: string | null;
+  resolved_at: string | null;
+  created_at: string | null;
+}
+
+export interface ApplyAgentSession {
+  session_id: number;
+  candidate_profile_id: number;
+  job_id: number;
+  resume_id: number | null;
+  status: ApplyAgentSessionStatus;
+  job_title: string | null;
+  job_company: string | null;
+  profile_label: string | null;
+  resume_name: string | null;
+  suggestions: ApplyAgentFieldSuggestion[];
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface ApplyAgentActionLog {
+  action_id: number;
+  session_id: number;
+  field_key: string;
+  action_type: ApplyAgentActionType;
+  agent_suggestion: string | null;
+  final_value: string | null;
+  logged_at: string | null;
+}
+
+export interface CreateApplySessionPayload {
+  candidate_profile_id: number;
+  job_id: number;
+  resume_id?: number | null;
+  api_key?: string | null;
+  form_fields: { field_key: string; label: string; field_type: string }[];
+}
+
+export interface ResolveFieldPayload {
+  resolved_status: ApplyAgentResolvedStatus;
+  final_value?: string | null;
+}
+
+export interface LogActionPayload {
+  field_key: string;
+  action_type: ApplyAgentActionType;
+  agent_suggestion?: string | null;
+  final_value?: string | null;
+}
+
+export interface UpdateApplySessionPayload {
+  status: ApplyAgentSessionStatus;
+}
+
+export interface CandidateProfilePayload {
+  label: string;
+  resume_id?: number | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  preferred_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  location_city?: string | null;
+  location_region?: string | null;
+  country?: string | null;
+  school?: string | null;
+  program?: string | null;
+  degree?: string | null;
+  graduation_month?: number | null;
+  graduation_year?: number | null;
+  gpa_optional?: string | null;
+  linkedin_url?: string | null;
+  github_url?: string | null;
+  portfolio_url?: string | null;
+  personal_website_url?: string | null;
+  other_links_json?: string | null;
+  work_authorization_country?: string | null;
+  authorized_to_work?: string | null;
+  requires_sponsorship?: boolean | null;
+  available_start_date?: string | null;
+  available_end_date?: string | null;
+  preferred_work_location?: string | null;
+  open_to_remote?: boolean | null;
+  default_why_interested?: string | null;
+  default_relevant_project?: string | null;
+  default_additional_info?: string | null;
+  default_cover_note?: string | null;
+  top_skills_json?: string | null;
+  top_projects_json?: string | null;
+}

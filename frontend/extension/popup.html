@@ -3,17 +3,19 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Hyrra AI Job Saver</title>
+    <title>Hyrra AI</title>
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
-    <main class="shell">
+
+    <!-- ── Job Saver Panel (original mode) ─────────────────────────────── -->
+    <main id="job-panel" class="shell">
       <header class="header">
         <div>
           <h1>Hyrra AI</h1>
           <p id="sourceLabel">Extracting page text...</p>
         </div>
-        <a id="dashboardLink" class="dashboard-link" href="http://localhost:3000/jobs">Dashboard</a>
+        <a id="dashboardLink" class="dashboard-link" href="#">Dashboard</a>
       </header>
 
       <section class="field">
@@ -28,6 +30,49 @@
         <button id="saveButton" type="button" class="primary">Save Job</button>
       </footer>
     </main>
+
+    <!-- ── Apply Demo Panel (apply-demo mode) ──────────────────────────── -->
+    <main id="apply-panel" class="shell apply-panel" style="display:none">
+      <header class="header">
+        <div>
+          <h1>Hyrra AI</h1>
+          <p class="apply-mode-badge">Apply Demo Detected</p>
+        </div>
+        <button id="applyDashboardBtn" class="dashboard-link" type="button">Dashboard</button>
+      </header>
+
+      <!-- Detected job card -->
+      <div class="apply-job-card">
+        <div class="apply-job-name">Northstar EV Systems · AI Automation Intern</div>
+        <div id="applyJobStatus" class="apply-job-status"></div>
+      </div>
+
+      <!-- Session info — shown after Prepare succeeds -->
+      <div id="applySessionInfo" class="apply-session-info" style="display:none">
+        <div id="applySessionLabel" class="apply-session-label"></div>
+        <div id="applyCounts" class="apply-counts"></div>
+      </div>
+
+      <!-- Status / error message -->
+      <div id="applyStatus" class="status" aria-live="polite"></div>
+
+      <!-- OpenClaw result details (expandable) -->
+      <details id="applyDetails" style="display:none">
+        <summary class="details-summary">OpenClaw result details</summary>
+        <pre id="applyDetailsContent" class="details-content"></pre>
+      </details>
+
+      <!-- Action buttons -->
+      <div class="apply-actions">
+        <button id="btnPrepare" type="button" class="primary">Prepare Apply Session</button>
+        <button id="btnRunOpenclaw" type="button" class="primary openclaw-btn" style="display:none">Run OpenClaw Fill</button>
+        <div id="applySecondaryRow" class="apply-actions-row" style="display:none">
+          <button id="btnCopyTask" type="button" class="secondary debug-btn">Copy Task (debug)</button>
+          <button id="btnOpenDashboard" type="button" class="secondary">Open Dashboard</button>
+        </div>
+      </div>
+    </main>
+
     <script src="popup.js"></script>
   </body>
 </html>
