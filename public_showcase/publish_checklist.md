@@ -9,4 +9,6 @@ Use this checklist when you are ready to publish the Hyrra AI Showcase repositor
 - [ ] **Link Demo**: Add a link to a Loom or YouTube walkthrough video in the README.
 - [ ] **Verify No Code Leak**: Triple-check that no `.ts`, `.py`, `.json`, or configuration files were accidentally copied from the private source code into the public repository.
 - [ ] **Sanitize Screenshots**: Ensure your screenshots do not accidentally display your personal API keys, private email addresses, or real contact info.
+- [ ] **Copy apply_agent_demo.md**: Include `apply_agent_demo.md` in the root of the public repo alongside `README.md`.
+- [ ] **Verify demo video link**: Open the Google Drive link in an incognito window to confirm it is set to "Anyone with the link can view". If it returns a permissions error, update the share settings before pushing.
 - [ ] **Push**: Commit the changes and push the showcase repository to GitHub.
